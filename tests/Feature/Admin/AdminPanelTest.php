@@ -15,11 +15,12 @@ it('serves the admin login page', function () {
     $this->get('/admin/login')->assertOk();
 });
 
-it('registers resources; journal entries stay read-only but invoices/bills are creatable', function () {
+it('registers resources; journal entries, invoices and bills are all creatable (posted docs stay immutable)', function () {
     $resources = Filament::getPanel('admin')->getResources();
 
     expect(count($resources))->toBeGreaterThanOrEqual(11)
-        ->and(JournalEntryResource::canCreate())->toBeFalse()
+        ->and(JournalEntryResource::canCreate())->toBeTrue()
+        ->and(JournalEntryResource::canDeleteAny())->toBeFalse()
         ->and(InvoiceResource::canCreate())->toBeTrue()
         ->and(BillResource::canCreate())->toBeTrue();
 });

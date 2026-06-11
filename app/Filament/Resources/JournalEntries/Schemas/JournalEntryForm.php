@@ -4,66 +4,54 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\JournalEntries\Schemas;
 
-use App\Enums\JournalStatus;
+use App\Models\Account;
+use App\Models\Branch;
+use App\Models\Department;
+use App\Models\Fund;
+use App\Models\Project;
 use Filament\Forms\Components\DatePicker;
-use Filament\Forms\Components\DateTimePicker;
+use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Schema;
 
+/**
+ * Manual journal entry form. Posted via CreateJournalEntry -> PostJournalEntry
+ * (§4.2). Amounts in pesos; debits must equal credits.
+ */
 class JournalEntryForm
 {
     public static function configure(Schema $schema): Schema
     {
-        return $schema
-            ->components([
-                Select::make('company_id')
-                    ->relationship('company', 'name')
-                    ->required(),
-                Select::make('period_id')
-                    ->relationship('period', 'id')
-                    ->required(),
-                TextInput::make('number'),
-                DatePicker::make('entry_date')
-                    ->required(),
-                Textarea::make('memo')
-                    ->columnSpanFull(),
-                TextInput::make('source_type'),
-                TextInput::make('source_id')
-                    ->numeric(),
-                Select::make('status')
-                    ->options(JournalStatus::class)
-                    ->default('draft')
-                    ->required(),
-                Select::make('reversal_of_id')
-                    ->relationship('reversalOf', 'id'),
-                TextInput::make('reversed_by_id')
-                    ->numeric(),
-                TextInput::make('reversal_reason'),
-                TextInput::make('reference_no'),
-                TextInput::make('external_reference_no'),
-                Textarea::make('remarks')
-                    ->columnSpanFull(),
-                TextInput::make('created_by')
-                    ->numeric(),
-                TextInput::make('checked_by')
-                    ->numeric(),
-                DateTimePicker::make('checked_at'),
-                TextInput::make('approved_by')
-                    ->numeric(),
-                DateTimePicker::make('approved_at'),
-                TextInput::make('posted_by')
-                    ->numeric(),
-                DateTimePicker::make('posted_at'),
-                TextInput::make('total_debits')
-                    ->required()
-                    ->numeric()
-                    ->default(0),
-                TextInput::make('total_credits')
-                    ->required()
-                    ->numeric()
-                    ->default(0),
-            ]);
+        return $schema->components([
+            DatePicker::make('entry_date')->default(now())->required(),
+            Textarea::make('memo')->columnSpanFull(),
+
+            Repeater::make('lines')
+                ->label('Lines')
+                ->columnSpanFull()
+                ->minItems(2)
+                ->defaultItems(2)
+                ->columns(12)
+                ->schema([
+                    Select::make('account_id')
+                        ->label('Account')
+                        ->options(fn () => Account::query()->orderBy('code')->get()
+                            ->mapWithKeys(fn (Account $a) => [$a->id => "{$a->code} — {$a->name}"]))
+                        ->searchable()->required()->columnSpan(4),
+                    TextInput::make('debit')->label('Debit (P)')->numeric()->default(0)->columnSpan(2),
+                    TextInput::make('credit')->label('Credit (P)')->numeric()->default(0)->columnSpan(2),
+                    TextInput::make('memo')->columnSpan(4),
+                    Select::make('department_id')->label('Dept')
+                        ->options(fn () => Department::query()->pluck('name', 'id'))->columnSpan(3),
+                    Select::make('project_id')->label('Project')
+                        ->options(fn () => Project::query()->pluck('name', 'id'))->columnSpan(3),
+                    Select::make('fund_id')->label('Fund')
+                        ->options(fn () => Fund::query()->pluck('name', 'id'))->columnSpan(3),
+                    Select::make('branch_id')->label('Branch')
+                        ->options(fn () => Branch::query()->pluck('name', 'id'))->columnSpan(3),
+                ]),
+        ]);
     }
 }
