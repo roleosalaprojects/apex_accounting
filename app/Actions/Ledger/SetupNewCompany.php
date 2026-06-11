@@ -8,6 +8,8 @@ use App\Enums\AccountSubtype;
 use App\Models\Account;
 use App\Models\Company;
 use App\Models\DocumentSequence;
+use App\Models\TaxCode;
+use App\Models\WithholdingCode;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -81,9 +83,46 @@ final class SetupNewCompany
         'payment_voucher' => ['PV', 6],
     ];
 
+    /**
+     * code => [name, rate_bp, kind]
+     *
+     * @return array<string, array{0: string, 1: int, 2: string}>
+     */
+    public const TAX_CODES = [
+        'VAT12' => ['VAT 12%', 1200, 'output'],
+        'EXEMPT' => ['VAT-Exempt', 0, 'output'],
+        'ZERO' => ['Zero-Rated', 0, 'output'],
+    ];
+
+    /**
+     * code => [name, rate_bp, atc, applies_to]
+     *
+     * @return array<string, array{0: string, 1: int, 2: string, 3: string}>
+     */
+    public const WITHHOLDING_CODES = [
+        'WC158' => ['EWT — Goods 1%', 100, 'WC158', 'purchase'],
+        'WC160' => ['EWT — Services 2%', 200, 'WC160', 'purchase'],
+        'WC100' => ['EWT — Rental 5%', 500, 'WC100', 'purchase'],
+        'WI010' => ['EWT — Professional 10%', 1000, 'WI010', 'purchase'],
+    ];
+
     public function handle(Company $company): Company
     {
         DB::transaction(function () use ($company): void {
+            foreach (self::TAX_CODES as $code => [$name, $rateBp, $kind]) {
+                TaxCode::query()->firstOrCreate(
+                    ['company_id' => $company->id, 'code' => $code],
+                    ['name' => $name, 'rate_bp' => $rateBp, 'kind' => $kind],
+                );
+            }
+
+            foreach (self::WITHHOLDING_CODES as $code => [$name, $rateBp, $atc, $appliesTo]) {
+                WithholdingCode::query()->firstOrCreate(
+                    ['company_id' => $company->id, 'code' => $code],
+                    ['name' => $name, 'rate_bp' => $rateBp, 'atc' => $atc, 'applies_to' => $appliesTo],
+                );
+            }
+
             foreach (self::ACCOUNTS as $code => [$name, $subtype, $isSystem]) {
                 Account::query()->firstOrCreate(
                     ['company_id' => $company->id, 'code' => $code],
