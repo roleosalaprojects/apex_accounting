@@ -9,14 +9,17 @@ use App\Data\Ledger\JournalEntryData;
 use App\Data\Ledger\JournalLineData;
 use App\Data\Payables\BillData;
 use App\Enums\InvoiceStatus;
+use App\Enums\ItemType;
 use App\Enums\PricingMode;
 use App\Exceptions\Ledger\InvalidVatBucketException;
 use App\Models\Account;
 use App\Models\Bill;
 use App\Models\Company;
+use App\Models\Item;
 use App\Models\TaxCode;
 use App\Models\User;
 use App\Models\Vendor;
+use App\Services\Inventory\InventoryService;
 use App\Services\Numbering\NumberGenerator;
 use App\Services\Tax\InputVatRouter;
 use App\Services\Tax\TaxValidator;
@@ -43,6 +46,7 @@ final class PostBill
         private readonly TaxValidator $taxValidator,
         private readonly InputVatRouter $router,
         private readonly NumberGenerator $numbers,
+        private readonly InventoryService $inventory,
     ) {}
 
     public function handle(BillData $data, ?User $actor = null): Bill
@@ -96,6 +100,7 @@ final class PostBill
 
             foreach ($computed['lines'] as $line) {
                 $bill->lines()->create($line['model']);
+                $this->receiveInventory($company, $line);
             }
 
             $entry = $this->post->handle($this->buildJournalData($company, $vendor, $bill, $data, $computed), $actor);
@@ -246,6 +251,35 @@ final class PostBill
             source_id: $bill->id,
             created_by: $data->created_by,
             approved_by: $data->approved_by ?? $data->created_by,
+        );
+    }
+
+    /**
+     * Receive stock into weighted-average valuation when a line targets an
+     * inventory item (§9). The line cost (which already capitalizes exempt VAT)
+     * is the receipt cost basis.
+     *
+     * @param  array<string, mixed>  $line
+     */
+    private function receiveInventory(Company $company, array $line): void
+    {
+        $itemId = $line['model']['item_id'] ?? null;
+        if ($itemId === null) {
+            return;
+        }
+
+        /** @var Item|null $item */
+        $item = Item::query()->withoutGlobalScopes()
+            ->where('company_id', $company->id)->find($itemId);
+
+        if ($item === null || $item->type !== ItemType::Inventory) {
+            return;
+        }
+
+        $this->inventory->receive(
+            $item,
+            Quantity::toUnits($line['model']['qty']),
+            $line['cost_debit'],
         );
     }
 

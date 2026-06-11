@@ -9,13 +9,16 @@ use App\Data\Ledger\JournalEntryData;
 use App\Data\Ledger\JournalLineData;
 use App\Data\Receivables\InvoiceData;
 use App\Enums\InvoiceStatus;
+use App\Enums\ItemType;
 use App\Enums\PricingMode;
 use App\Models\Account;
 use App\Models\Company;
 use App\Models\Customer;
 use App\Models\Invoice;
+use App\Models\Item;
 use App\Models\TaxCode;
 use App\Models\User;
+use App\Services\Inventory\InventoryService;
 use App\Services\Numbering\NumberGenerator;
 use App\Services\Tax\TaxValidator;
 use App\Services\Tax\VatMath;
@@ -43,6 +46,7 @@ final class PostInvoice
         private readonly VatMath $vat,
         private readonly TaxValidator $taxValidator,
         private readonly NumberGenerator $numbers,
+        private readonly InventoryService $inventory,
     ) {}
 
     public function handle(InvoiceData $data, ?User $actor = null): Invoice
@@ -105,6 +109,10 @@ final class PostInvoice
 
             $invoice->forceFill(['journal_entry_id' => $entry->id])->save();
 
+            if (! $data->is_opening) {
+                $this->postCogs($company, $invoice, $data, $actor);
+            }
+
             return $invoice->load('lines');
         });
     }
@@ -126,7 +134,12 @@ final class PostInvoice
                 throw new RuntimeException("Tax code {$lineData->tax_code_id} not found.");
             }
 
-            $this->taxValidator->assertAllowed($taxCode, $company->taxpayer_type);
+            $lineIsVatExempt = $lineData->item_id !== null
+                && Item::query()->withoutGlobalScopes()
+                    ->where('company_id', $company->id)->whereKey($lineData->item_id)
+                    ->value('is_vat_exempt_item');
+
+            $this->taxValidator->assertAllowed($taxCode, $company->taxpayer_type, (bool) $lineIsVatExempt);
 
             $units = Quantity::toUnits($lineData->qty);
             $gross = Quantity::extend($lineData->unit_price, $units);
@@ -257,6 +270,63 @@ final class PostInvoice
             created_by: $data->created_by,
             approved_by: $data->approved_by ?? $data->created_by,
         );
+    }
+
+    /**
+     * Relieve inventory at the current weighted average and post the COGS entry
+     * (§9): Dr 5100/5200 COGS / Cr 1300/1310 Inventory.
+     */
+    private function postCogs(Company $company, Invoice $invoice, InvoiceData $data, ?User $actor): void
+    {
+        /** @var array<string, array{cogs: int, inventory: int, amount: int}> $byPair */
+        $byPair = [];
+
+        foreach ($data->lines as $lineData) {
+            if ($lineData->item_id === null) {
+                continue;
+            }
+
+            /** @var Item|null $item */
+            $item = Item::query()->withoutGlobalScopes()
+                ->where('company_id', $company->id)->find($lineData->item_id);
+
+            if ($item === null || $item->type !== ItemType::Inventory) {
+                continue;
+            }
+            if ($item->cogs_account_id === null || $item->inventory_account_id === null) {
+                throw new RuntimeException("Inventory item {$item->sku} needs COGS and inventory accounts.");
+            }
+
+            $cogs = $this->inventory->issue($item, Quantity::toUnits($lineData->qty), $company);
+            if ($cogs === 0) {
+                continue;
+            }
+
+            $key = $item->cogs_account_id.':'.$item->inventory_account_id;
+            $byPair[$key] ??= ['cogs' => $item->cogs_account_id, 'inventory' => $item->inventory_account_id, 'amount' => 0];
+            $byPair[$key]['amount'] += $cogs;
+        }
+
+        if ($byPair === []) {
+            return;
+        }
+
+        $lines = [];
+        foreach ($byPair as $pair) {
+            $lines[] = new JournalLineData(account_id: $pair['cogs'], debit: $pair['amount'], memo: 'COGS');
+            $lines[] = new JournalLineData(account_id: $pair['inventory'], credit: $pair['amount'], memo: 'Inventory relief');
+        }
+
+        $this->post->handle(new JournalEntryData(
+            company_id: $company->id,
+            entry_date: $data->invoice_date,
+            memo: 'COGS for '.(string) $invoice->number,
+            lines: new DataCollection(JournalLineData::class, $lines),
+            source_type: $invoice->getMorphClass(),
+            source_id: $invoice->id,
+            created_by: $data->created_by,
+            approved_by: $data->approved_by ?? $data->created_by,
+        ), $actor);
     }
 
     private function account(Company $company, string $code): Account

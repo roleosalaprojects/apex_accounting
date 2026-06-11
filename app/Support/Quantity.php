@@ -39,6 +39,19 @@ final class Quantity
     }
 
     /**
+     * Render integer ten-thousandths back to a DECIMAL(15,4) string.
+     */
+    public static function fromUnits(int $units): string
+    {
+        $negative = $units < 0;
+        $units = abs($units);
+        $whole = intdiv($units, self::SCALE);
+        $fraction = str_pad((string) ($units % self::SCALE), 4, '0', STR_PAD_LEFT);
+
+        return ($negative ? '-' : '').$whole.'.'.$fraction;
+    }
+
+    /**
      * Multiply a unit price (centavos) by a quantity, rounding half up to the
      * centavo. Quantities are non-negative on real document lines.
      */
