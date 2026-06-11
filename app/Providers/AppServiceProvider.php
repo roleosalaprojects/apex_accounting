@@ -28,5 +28,8 @@ class AppServiceProvider extends ServiceProvider
             'invoice:post' => 'Post invoices',
             'reports:read' => 'Read reports',
         ]);
+
+        // Login history + failed-attempt log (§13). The RecordLoginEvent listener
+        // is auto-discovered for the Login/Failed/Logout events it type-hints.
     }
 }
