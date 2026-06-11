@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Actions\Admin\ExportCompanyData;
 use App\Enums\CompanyRole;
+use App\Filament\Resources\Bills\BillResource;
 use App\Filament\Resources\Invoices\InvoiceResource;
 use App\Filament\Resources\JournalEntries\JournalEntryResource;
 use App\Models\LoginEvent;
@@ -14,12 +15,13 @@ it('serves the admin login page', function () {
     $this->get('/admin/login')->assertOk();
 });
 
-it('registers the expected resources and read-only document resources', function () {
+it('registers resources; journal entries stay read-only but invoices/bills are creatable', function () {
     $resources = Filament::getPanel('admin')->getResources();
 
     expect(count($resources))->toBeGreaterThanOrEqual(11)
-        ->and(InvoiceResource::canCreate())->toBeFalse()
-        ->and(JournalEntryResource::canCreate())->toBeFalse();
+        ->and(JournalEntryResource::canCreate())->toBeFalse()
+        ->and(InvoiceResource::canCreate())->toBeTrue()
+        ->and(BillResource::canCreate())->toBeTrue();
 });
 
 it('records login events for the security log', function () {

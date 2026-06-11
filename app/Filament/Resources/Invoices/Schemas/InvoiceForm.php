@@ -4,86 +4,74 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Invoices\Schemas;
 
-use App\Enums\InvoiceStatus;
+use App\Enums\AccountType;
 use App\Enums\PricingMode;
+use App\Models\Account;
+use App\Models\Customer;
+use App\Models\Item;
+use App\Models\TaxCode;
 use Filament\Forms\Components\DatePicker;
-use Filament\Forms\Components\DateTimePicker;
+use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
-use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Schema;
 
+/**
+ * Invoice entry form. Submission is handled by CreateInvoice -> PostInvoice
+ * (§6.2); the form collects header + lines only.
+ */
 class InvoiceForm
 {
     public static function configure(Schema $schema): Schema
     {
         return $schema
             ->components([
-                Select::make('company_id')
-                    ->relationship('company', 'name')
-                    ->required(),
                 Select::make('customer_id')
-                    ->relationship('customer', 'name')
+                    ->label('Customer')
+                    ->options(fn () => Customer::query()->orderBy('name')->pluck('name', 'id'))
+                    ->searchable()
                     ->required(),
-                TextInput::make('number'),
                 DatePicker::make('invoice_date')
+                    ->default(now())
                     ->required(),
                 DatePicker::make('due_date'),
-                Select::make('status')
-                    ->options(InvoiceStatus::class)
-                    ->default('draft')
-                    ->required(),
                 Select::make('pricing_mode')
                     ->options(PricingMode::class)
-                    ->default('vat_inclusive')
+                    ->default(PricingMode::VatInclusive->value)
                     ->required(),
-                Toggle::make('is_opening')
-                    ->required(),
-                TextInput::make('vatable_sales')
-                    ->required()
-                    ->numeric()
-                    ->default(0),
-                TextInput::make('vat_amount')
-                    ->required()
-                    ->numeric()
-                    ->default(0),
-                TextInput::make('exempt_sales')
-                    ->required()
-                    ->numeric()
-                    ->default(0),
-                TextInput::make('zero_rated_sales')
-                    ->required()
-                    ->numeric()
-                    ->default(0),
-                TextInput::make('total')
-                    ->required()
-                    ->numeric()
-                    ->default(0),
-                Select::make('journal_entry_id')
-                    ->relationship('journalEntry', 'id'),
-                Textarea::make('memo')
-                    ->columnSpanFull(),
-                TextInput::make('reference_no'),
-                TextInput::make('external_reference_no'),
-                Textarea::make('remarks')
-                    ->columnSpanFull(),
-                TextInput::make('created_by')
-                    ->numeric(),
-                TextInput::make('checked_by')
-                    ->numeric(),
-                DateTimePicker::make('checked_at'),
-                TextInput::make('approved_by')
-                    ->numeric(),
-                DateTimePicker::make('approved_at'),
-                TextInput::make('department_id')
-                    ->numeric(),
-                TextInput::make('project_id')
-                    ->numeric(),
-                TextInput::make('fund_id')
-                    ->numeric(),
-                TextInput::make('branch_id')
-                    ->numeric(),
+                Textarea::make('memo')->columnSpanFull(),
+
+                Repeater::make('lines')
+                    ->label('Line items')
+                    ->columnSpanFull()
+                    ->minItems(1)
+                    ->defaultItems(1)
+                    ->columns(12)
+                    ->schema([
+                        Select::make('item_id')
+                            ->label('Item')
+                            ->options(fn () => Item::query()->orderBy('name')->pluck('name', 'id'))
+                            ->searchable()
+                            ->columnSpan(3),
+                        TextInput::make('description')->required()->columnSpan(3),
+                        TextInput::make('qty')->numeric()->default(1)->required()->columnSpan(2),
+                        TextInput::make('unit_price')
+                            ->label('Unit price (₱)')
+                            ->numeric()->required()->columnSpan(2),
+                        Select::make('tax_code_id')
+                            ->label('Tax')
+                            ->options(fn () => TaxCode::query()->pluck('code', 'id'))
+                            ->required()->columnSpan(2),
+                        Select::make('income_account_id')
+                            ->label('Income account')
+                            ->options(fn () => Account::query()
+                                ->where('type', AccountType::Income->value)
+                                ->orderBy('code')
+                                ->get()
+                                ->mapWithKeys(fn (Account $a) => [$a->id => "{$a->code} — {$a->name}"]))
+                            ->required()->columnSpan(12),
+                    ]),
             ]);
     }
 }
