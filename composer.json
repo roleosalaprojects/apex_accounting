@@ -57,6 +57,17 @@
             "@php artisan config:clear --ansi @no_additional_args",
             "@php artisan test"
         ],
+        "stan": [
+            "phpstan analyse --no-progress --memory-limit=1G"
+        ],
+        "lint": [
+            "pint"
+        ],
+        "gate": [
+            "pint --test",
+            "phpstan analyse --no-progress --memory-limit=1G",
+            "@php artisan test"
+        ],
         "post-autoload-dump": [
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
             "@php artisan package:discover --ansi"
