@@ -33,6 +33,7 @@ class AdminPanelProvider extends PanelProvider
             ->default()
             ->id('admin')
             ->path('admin')
+            ->viteTheme('resources/css/filament/admin/theme.css')
             ->login()
             ->tenant(Company::class)
             ->tenantRegistration(RegisterCompany::class)
@@ -41,6 +42,7 @@ class AdminPanelProvider extends PanelProvider
                 SetCompanyContextFromTenant::class,
             ], isPersistent: true)
             ->brandName('Apex Accounting')
+            ->viteTheme('resources/css/filament/admin/theme.css')
             ->colors([
                 'primary' => Color::Amber,
             ])
