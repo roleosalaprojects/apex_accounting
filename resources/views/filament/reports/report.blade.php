@@ -10,6 +10,17 @@
             <label class="text-sm font-medium">{{ $usesRange ? 'To' : 'As of' }}</label>
             <input type="date" wire:model.live="asOf" class="block rounded-lg border-gray-300 dark:bg-gray-800 dark:border-gray-600" />
         </div>
+        @if ($entityFilter)
+            <div>
+                <label class="text-sm font-medium">{{ $entityFilter['label'] }}</label>
+                <select wire:model.live="entity" class="block rounded-lg border-gray-300 dark:bg-gray-800 dark:border-gray-600 min-w-64">
+                    <option value="">— select —</option>
+                    @foreach ($entityFilter['options'] as $value => $label)
+                        <option value="{{ $value }}">{{ $label }}</option>
+                    @endforeach
+                </select>
+            </div>
+        @endif
     </form>
 
     @if (! empty($report['meta']['label']))

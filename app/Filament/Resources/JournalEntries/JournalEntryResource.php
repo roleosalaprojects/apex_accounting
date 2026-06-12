@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\JournalEntries;
 
+use App\Enums\JournalStatus;
 use App\Filament\Resources\JournalEntries\Pages\CreateJournalEntry;
 use App\Filament\Resources\JournalEntries\Pages\ListJournalEntries;
+use App\Filament\Resources\JournalEntries\Pages\ViewJournalEntry;
 use App\Filament\Resources\JournalEntries\Schemas\JournalEntryForm;
+use App\Filament\Resources\JournalEntries\Schemas\JournalEntryInfolist;
 use App\Filament\Resources\JournalEntries\Tables\JournalEntriesTable;
 use App\Models\JournalEntry;
 use BackedEnum;
@@ -31,9 +34,26 @@ class JournalEntryResource extends Resource
         return JournalEntryForm::configure($schema);
     }
 
+    public static function infolist(Schema $schema): Schema
+    {
+        return JournalEntryInfolist::configure($schema);
+    }
+
     public static function table(Table $table): Table
     {
         return JournalEntriesTable::configure($table);
+    }
+
+    public static function getNavigationBadge(): ?string
+    {
+        $drafts = JournalEntry::query()->where('status', JournalStatus::Draft->value)->count();
+
+        return $drafts > 0 ? (string) $drafts : null;
+    }
+
+    public static function getNavigationBadgeTooltip(): ?string
+    {
+        return 'Draft entries awaiting approval';
     }
 
     public static function canEdit(Model $record): bool
@@ -56,6 +76,7 @@ class JournalEntryResource extends Resource
         return [
             'index' => ListJournalEntries::route('/'),
             'create' => CreateJournalEntry::route('/create'),
+            'view' => ViewJournalEntry::route('/{record}'),
         ];
     }
 }

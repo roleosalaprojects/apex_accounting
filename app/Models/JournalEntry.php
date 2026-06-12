@@ -115,6 +115,14 @@ final class JournalEntry extends Model
     }
 
     /**
+     * @return BelongsTo<JournalEntry, $this>
+     */
+    public function reversedBy(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'reversed_by_id');
+    }
+
+    /**
      * @return MorphMany<Attachment, $this>
      */
     public function attachments(): MorphMany

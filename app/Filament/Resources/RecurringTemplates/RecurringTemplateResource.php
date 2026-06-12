@@ -7,6 +7,7 @@ namespace App\Filament\Resources\RecurringTemplates;
 use App\Enums\RecurringKind;
 use App\Enums\RecurringSchedule;
 use App\Filament\Resources\RecurringTemplates\Pages\CreateRecurringTemplate;
+use App\Filament\Resources\RecurringTemplates\Pages\EditRecurringTemplate;
 use App\Filament\Resources\RecurringTemplates\Pages\ListRecurringTemplates;
 use App\Models\RecurringTemplate;
 use BackedEnum;
@@ -71,6 +72,7 @@ class RecurringTemplateResource extends Resource
         return [
             'index' => ListRecurringTemplates::route('/'),
             'create' => CreateRecurringTemplate::route('/create'),
+            'edit' => EditRecurringTemplate::route('/{record}/edit'),
         ];
     }
 }

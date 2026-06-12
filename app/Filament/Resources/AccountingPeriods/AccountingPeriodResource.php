@@ -84,7 +84,7 @@ class AccountingPeriodResource extends Resource
             ->defaultSort('starts_on');
     }
 
-    private static function userCanManagePeriods(): bool
+    public static function userCanManagePeriods(): bool
     {
         /** @var Company|null $company */
         $company = Filament::getTenant();

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Providers\Filament;
 
+use App\Filament\Pages\Tenancy\EditCompanyProfile;
+use App\Filament\Pages\Tenancy\RegisterCompany;
 use App\Http\Middleware\SetCompanyContextFromTenant;
 use App\Models\Company;
 use Filament\Http\Middleware\Authenticate;
@@ -33,6 +35,8 @@ class AdminPanelProvider extends PanelProvider
             ->path('admin')
             ->login()
             ->tenant(Company::class)
+            ->tenantRegistration(RegisterCompany::class)
+            ->tenantProfile(EditCompanyProfile::class)
             ->tenantMiddleware([
                 SetCompanyContextFromTenant::class,
             ], isPersistent: true)

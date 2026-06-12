@@ -27,6 +27,8 @@ abstract class ReportPage extends Page
 
     public ?string $asOf = null;
 
+    public ?string $entity = null;
+
     public function mount(): void
     {
         $this->from = Carbon::now()->startOfYear()->toDateString();
@@ -37,6 +39,16 @@ abstract class ReportPage extends Page
     protected function usesRange(): bool
     {
         return true;
+    }
+
+    /**
+     * Reports filtered by a single entity (GL account, customer) override this.
+     *
+     * @return array{label: string, options: array<int|string, string>}|null
+     */
+    protected function entityFilter(): ?array
+    {
+        return null;
     }
 
     /**
@@ -67,6 +79,7 @@ abstract class ReportPage extends Page
             'from' => $this->from,
             'asOf' => $this->asOf,
             'usesRange' => $this->usesRange(),
+            'entityFilter' => $this->entityFilter(),
         ];
     }
 
