@@ -15,6 +15,7 @@ use Filament\Actions\Action;
 use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ViewRecord;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Throwable;
@@ -22,6 +23,12 @@ use Throwable;
 class ViewInvoice extends ViewRecord
 {
     protected static string $resource = InvoiceResource::class;
+
+    protected function resolveRecord(int|string $key): Model
+    {
+        return parent::resolveRecord($key)
+            ->load(['customer', 'lines.taxCode', 'attachments.uploader']);
+    }
 
     protected function getHeaderActions(): array
     {

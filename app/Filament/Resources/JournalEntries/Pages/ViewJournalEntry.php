@@ -18,12 +18,19 @@ use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ViewRecord;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
 use Throwable;
 
 class ViewJournalEntry extends ViewRecord
 {
     protected static string $resource = JournalEntryResource::class;
+
+    protected function resolveRecord(int|string $key): Model
+    {
+        return parent::resolveRecord($key)
+            ->load(['lines.account', 'reversalOf', 'reversedBy', 'attachments.uploader']);
+    }
 
     protected function getHeaderActions(): array
     {
