@@ -12,6 +12,7 @@ use App\Filament\Support\AttachFilesAction;
 use App\Models\Company;
 use App\Models\JournalEntry;
 use App\Models\User;
+use App\Support\Rbac\RbacRegistry;
 use Filament\Actions\Action;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\DatePicker;
@@ -83,6 +84,6 @@ class ViewJournalEntry extends ViewRecord
         /** @var User|null $user */
         $user = Auth::user();
 
-        return $company !== null && $user?->roleIn($company->id)?->canApprove() === true;
+        return $company !== null && $user?->hasCompanyPermission($company->id, RbacRegistry::JOURNAL_APPROVE) === true;
     }
 }

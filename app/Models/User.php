@@ -6,6 +6,7 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Enums\CompanyRole;
+use App\Support\Rbac\RbacRegistry;
 use Database\Factories\UserFactory;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Models\Contracts\HasTenants;
@@ -20,13 +21,16 @@ use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Collection;
 use Laravel\Passport\Contracts\OAuthenticatable;
 use Laravel\Passport\HasApiTokens;
+use Spatie\Permission\Models\Role;
+use Spatie\Permission\PermissionRegistrar;
+use Spatie\Permission\Traits\HasRoles;
 
 #[Fillable(['name', 'email', 'password'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable implements FilamentUser, HasTenants, OAuthenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasApiTokens, HasFactory, Notifiable;
+    use HasApiTokens, HasFactory, HasRoles, Notifiable;
 
     /**
      * @return array<string, string>
@@ -64,6 +68,47 @@ class User extends Authenticatable implements FilamentUser, HasTenants, OAuthent
         $role = $company->getAttribute('pivot')->role;
 
         return CompanyRole::tryFrom((string) $role);
+    }
+
+    /**
+     * Fine-grained authorization within a company (the spatie "team"). The
+     * single chokepoint for permission checks — it verifies membership, scopes
+     * the permission lookup to the company, and reads from the user's assigned
+     * role(s) there. Used by Actions and Filament gates. (§16.10)
+     */
+    public function hasCompanyPermission(int $companyId, string $permission): bool
+    {
+        if (! $this->companies()->whereKey($companyId)->exists()) {
+            return false;
+        }
+
+        app(PermissionRegistrar::class)->setPermissionsTeamId($companyId);
+        $this->unsetRelation('roles')->unsetRelation('permissions');
+
+        return $this->hasPermissionTo($permission, RbacRegistry::GUARD);
+    }
+
+    /**
+     * Assign (replacing any existing) the standard spatie role for this user
+     * within the given company. Keeps the spatie assignment in step with the
+     * company_user.role membership pivot.
+     */
+    public function syncCompanyRole(int $companyId, CompanyRole $role): void
+    {
+        app(PermissionRegistrar::class)->setPermissionsTeamId($companyId);
+        $this->unsetRelation('roles');
+        $this->syncRoles([Role::findByName($role->value, RbacRegistry::GUARD)]);
+    }
+
+    /**
+     * Drop all of this user's role assignments within a company (e.g. when they
+     * are removed from the team).
+     */
+    public function forgetCompanyRoles(int $companyId): void
+    {
+        app(PermissionRegistrar::class)->setPermissionsTeamId($companyId);
+        $this->unsetRelation('roles');
+        $this->syncRoles([]);
     }
 
     // --- Filament panel access + multi-company tenancy (§13) ---

@@ -8,6 +8,7 @@ use App\Actions\Admin\ExportCompanyData;
 use App\Enums\TaxpayerType;
 use App\Models\Company;
 use App\Models\User;
+use App\Support\Rbac\RbacRegistry;
 use Filament\Actions\Action;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\Select;
@@ -61,7 +62,7 @@ class EditCompanyProfile extends EditTenantProfile
                     /** @var User|null $user */
                     $user = Auth::user();
 
-                    return $company !== null && $user?->roleIn($company->id)?->canManageCompany() === true;
+                    return $company !== null && $user?->hasCompanyPermission($company->id, RbacRegistry::COMPANY_MANAGE) === true;
                 })
                 ->requiresConfirmation()
                 ->modalDescription('Downloads a ZIP of every table for this company as CSV, plus a manifest. The export is recorded in the audit log.')

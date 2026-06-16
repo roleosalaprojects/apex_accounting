@@ -8,6 +8,7 @@ use App\Filament\Resources\AuditLogs\Pages\ListAuditLogs;
 use App\Models\AuditLog;
 use App\Models\Company;
 use App\Models\User;
+use App\Support\Rbac\RbacRegistry;
 use BackedEnum;
 use Filament\Facades\Filament;
 use Filament\Resources\Resource;
@@ -38,7 +39,7 @@ class AuditLogResource extends Resource
         /** @var User|null $user */
         $user = Auth::user();
 
-        return $company !== null && $user?->roleIn($company->id)?->canManageCompany() === true;
+        return $company !== null && $user?->hasCompanyPermission($company->id, RbacRegistry::AUDIT_VIEW) === true;
     }
 
     public static function canCreate(): bool

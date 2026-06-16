@@ -7,6 +7,7 @@ namespace App\Actions\Admin;
 use App\Models\Company;
 use App\Models\User;
 use App\Services\AuditLogger;
+use App\Support\Rbac\RbacRegistry;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
@@ -36,7 +37,7 @@ final class ExportCompanyData
 
     public function handle(Company $company, User $actor, ?string $outputPath = null): string
     {
-        if ($actor->roleIn($company->id)?->canManageCompany() !== true) {
+        if (! $actor->hasCompanyPermission($company->id, RbacRegistry::COMPANY_EXPORT)) {
             throw new RuntimeException('Only an owner may export company data.');
         }
 

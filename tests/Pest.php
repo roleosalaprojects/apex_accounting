@@ -48,6 +48,7 @@ function makeUserWithRole(Company $company, CompanyRole $role): User
 {
     $user = User::factory()->create();
     $company->users()->attach($user->id, ['role' => $role->value]);
+    $user->syncCompanyRole($company->id, $role);
 
     return $user;
 }

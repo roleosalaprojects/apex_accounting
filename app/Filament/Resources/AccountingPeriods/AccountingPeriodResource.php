@@ -11,6 +11,7 @@ use App\Filament\Resources\AccountingPeriods\Pages\ListAccountingPeriods;
 use App\Models\AccountingPeriod;
 use App\Models\Company;
 use App\Models\User;
+use App\Support\Rbac\RbacRegistry;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Facades\Filament;
@@ -91,7 +92,7 @@ class AccountingPeriodResource extends Resource
         /** @var User|null $user */
         $user = Auth::user();
 
-        return $company !== null && $user?->roleIn($company->id)?->canApprove() === true;
+        return $company !== null && $user?->hasCompanyPermission($company->id, RbacRegistry::PERIOD_MANAGE) === true;
     }
 
     public static function getPages(): array

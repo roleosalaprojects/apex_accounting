@@ -19,6 +19,7 @@ use App\Models\User;
 use App\Services\AuditLogger;
 use App\Services\Ledger\LedgerBalanceCalculator;
 use App\Services\Numbering\NumberGenerator;
+use App\Support\Rbac\RbacRegistry;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -125,8 +126,7 @@ final class PostJournalEntry
             return; // system / API context (scope-gated elsewhere)
         }
 
-        $role = $actor->roleIn($company->id);
-        if ($role === null || ! $role->canPost()) {
+        if (! $actor->hasCompanyPermission($company->id, RbacRegistry::JOURNAL_POST)) {
             throw UnapprovedDocumentException::make('actor lacks posting rights');
         }
     }

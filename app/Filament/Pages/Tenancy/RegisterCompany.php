@@ -59,6 +59,7 @@ class RegisterCompany extends RegisterTenant
             /** @var Company $company */
             $company = Company::query()->create($data);
             $company->users()->attach($user->id, ['role' => CompanyRole::Owner->value]);
+            $user->syncCompanyRole($company->id, CompanyRole::Owner);
 
             app(SetupNewCompany::class)->handle($company);
             app(OpenFiscalYear::class)->handle($company, (int) now()->year);

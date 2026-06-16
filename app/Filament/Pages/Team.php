@@ -7,6 +7,7 @@ namespace App\Filament\Pages;
 use App\Enums\CompanyRole;
 use App\Models\Company;
 use App\Models\User;
+use App\Support\Rbac\RbacRegistry;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Facades\Filament;
@@ -44,7 +45,7 @@ class Team extends Page
         /** @var User|null $user */
         $user = Auth::user();
 
-        return $company !== null && $user?->roleIn($company->id)?->canManageCompany() === true;
+        return $company !== null && $user?->hasCompanyPermission($company->id, RbacRegistry::USERS_MANAGE) === true;
     }
 
     /**
@@ -97,6 +98,7 @@ class Team extends Page
                     }
 
                     $company->users()->attach($user->id, ['role' => $data['role']]);
+                    $user->syncCompanyRole($company->id, CompanyRole::from($data['role']));
                     Notification::make()->success()->title("{$user->name} added as {$data['role']}")->send();
                 }),
             Action::make('changeRole')->label('Change Role')->icon('heroicon-o-arrows-right-left')
@@ -116,6 +118,7 @@ class Team extends Page
                     }
 
                     $company->users()->updateExistingPivot($userId, ['role' => $data['role']]);
+                    User::query()->whereKey($userId)->first()?->syncCompanyRole($company->id, CompanyRole::from($data['role']));
                     Notification::make()->success()->title('Role updated')->send();
                 }),
             Action::make('removeMember')->label('Remove Member')->icon('heroicon-o-user-minus')->color('danger')
@@ -134,6 +137,7 @@ class Team extends Page
                         return;
                     }
 
+                    User::query()->whereKey($userId)->first()?->forgetCompanyRoles($company->id);
                     $company->users()->detach($userId);
                     Notification::make()->success()->title('Member removed')->send();
                 }),

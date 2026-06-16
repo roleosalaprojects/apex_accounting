@@ -7,6 +7,7 @@ namespace App\Filament\Pages\Reports;
 use App\Actions\Tax\AllocateCommonInputVat;
 use App\Models\User;
 use App\Services\Reports\VatSummaryReport;
+use App\Support\Rbac\RbacRegistry;
 use Filament\Actions\Action;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Carbon;
@@ -34,7 +35,7 @@ class VatSummary extends ReportPage
                 /** @var User|null $user */
                 $user = Auth::user();
 
-                return $user?->roleIn($this->company()->id)?->canApprove() === true;
+                return $user?->hasCompanyPermission($this->company()->id, RbacRegistry::TAX_VIEW) === true;
             })
             ->requiresConfirmation()
             ->modalDescription(function (): string {

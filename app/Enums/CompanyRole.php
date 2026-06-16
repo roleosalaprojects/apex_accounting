@@ -12,18 +12,19 @@ enum CompanyRole: string
 {
     case Owner = 'owner';
     case Accountant = 'accountant';
+    case Approver = 'approver';
     case Bookkeeper = 'bookkeeper';
     case Viewer = 'viewer';
 
-    /** Owner + accountant may approve and post. */
+    /** Owner + accountant + approver may approve and post. */
     public function canApprove(): bool
     {
-        return $this === self::Owner || $this === self::Accountant;
+        return in_array($this, [self::Owner, self::Accountant, self::Approver], true);
     }
 
     public function canPost(): bool
     {
-        return $this === self::Owner || $this === self::Accountant;
+        return in_array($this, [self::Owner, self::Accountant, self::Approver], true);
     }
 
     /** Bookkeeper+ may create/edit drafts and submit. */
