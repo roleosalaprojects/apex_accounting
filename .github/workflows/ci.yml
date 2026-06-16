@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+jobs:
+  gate:
+    name: Lint · Analyse · Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, bcmath, intl, gd, zip, pcntl, pdo_sqlite, sqlite3
+          coverage: none
+
+      - name: Install Composer dependencies
+        uses: ramsey/composer-install@v3
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Prepare application
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+
+      - name: Build front-end assets
+        # The Filament panel renders a Vite theme; the admin-page test fails
+        # without a build manifest, so assets must be built before the gate.
+        run: |
+          npm ci
+          npm run build
+
+      - name: Run quality gate (Pint + PHPStan + Pest)
+        run: composer gate
