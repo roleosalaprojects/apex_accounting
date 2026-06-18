@@ -48,6 +48,20 @@ class BankStatementLinesTable
                 SelectFilter::make('bank_account_id')->relationship('bankAccount', 'bank_name')->label('Bank account'),
             ])
             ->recordActions([
+                Action::make('automatch')
+                    ->label('Auto-match')->icon('heroicon-o-link')->color('info')
+                    ->visible(fn (BankStatementLine $l): bool => $l->status === 'unmatched')
+                    ->action(function (BankStatementLine $record): void {
+                        $importer = app(BankStatementImporter::class);
+                        $match = $importer->suggestMatches($record)->first();
+                        if ($match === null) {
+                            Notification::make()->warning()->title('No matching ledger entry found')->send();
+
+                            return;
+                        }
+                        $importer->matchToEntry($record, $match);
+                        Notification::make()->success()->title("Matched to {$match->number}")->send();
+                    }),
                 Action::make('post')
                     ->label('Post to ledger')->icon('heroicon-o-arrow-right-circle')->color('success')
                     ->visible(fn (BankStatementLine $l): bool => $l->status !== 'matched')

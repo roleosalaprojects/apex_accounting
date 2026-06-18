@@ -12,6 +12,8 @@ use App\Models\BankAccount;
 use App\Models\BankStatementLine;
 use App\Models\JournalEntry;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon;
 use InvalidArgumentException;
 use Throwable;
@@ -114,6 +116,48 @@ final class BankStatementImporter
         $line->update(['status' => 'matched', 'journal_entry_id' => $entry->id]);
 
         return $entry;
+    }
+
+    /**
+     * Candidate posted entries that could correspond to this statement line: a
+     * matching debit/credit on the bank's GL account near the transaction date,
+     * not already claimed by another statement line.
+     *
+     * @return Collection<int, JournalEntry>
+     */
+    public function suggestMatches(BankStatementLine $line, int $windowDays = 7): Collection
+    {
+        /** @var BankAccount $bank */
+        $bank = $line->bankAccount()->withoutGlobalScopes()->firstOrFail();
+        $amount = abs($line->amount);
+        $isDeposit = $line->amount >= 0;
+
+        $claimed = BankStatementLine::query()->withoutGlobalScopes()
+            ->where('company_id', $line->company_id)
+            ->whereNotNull('journal_entry_id')
+            ->whereKeyNot($line->id)
+            ->pluck('journal_entry_id');
+
+        return JournalEntry::query()->withoutGlobalScopes()
+            ->where('company_id', $line->company_id)
+            ->whereNotIn('id', $claimed)
+            ->whereBetween('entry_date', [
+                $line->txn_date->copy()->subDays($windowDays)->toDateString(),
+                $line->txn_date->copy()->addDays($windowDays)->toDateString(),
+            ])
+            ->whereHas('lines', function (Builder $q) use ($bank, $amount, $isDeposit): void {
+                $q->where('account_id', $bank->account_id)
+                    ->where($isDeposit ? 'debit' : 'credit', $amount);
+            })
+            ->orderBy('entry_date')
+            ->limit(10)
+            ->get();
+    }
+
+    /** Link a statement line to an existing posted entry (no new posting). */
+    public function matchToEntry(BankStatementLine $line, JournalEntry $entry): void
+    {
+        $line->update(['status' => 'matched', 'journal_entry_id' => $entry->id]);
     }
 
     private function toMinor(mixed $value): int

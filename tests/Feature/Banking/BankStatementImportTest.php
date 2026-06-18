@@ -86,3 +86,28 @@ it('renders the bank statements list page', function () {
 
     Livewire::test(ListBankStatementLines::class)->assertOk();
 });
+
+it('suggests and links a matching ledger entry', function () {
+    $entry = postEntry($this->company, '2026-03-15', [
+        ['account_id' => $this->bankGl->id, 'debit' => 1500_00],
+        ['account_id' => account($this->company, '4100')->id, 'credit' => 1500_00],
+    ], $this->actor);
+
+    $line = BankStatementLine::factory()->create([
+        'company_id' => $this->company->id,
+        'bank_account_id' => $this->bank->id,
+        'txn_date' => '2026-03-16',
+        'amount' => 1500_00,
+        'status' => 'unmatched',
+    ]);
+
+    $importer = app(BankStatementImporter::class);
+    $match = $importer->suggestMatches($line)->first();
+
+    expect($match?->id)->toBe($entry->id);
+
+    $importer->matchToEntry($line, $match);
+
+    expect($line->fresh()->status)->toBe('matched')
+        ->and($line->fresh()->journal_entry_id)->toBe($entry->id);
+});
