@@ -80,6 +80,8 @@ final class RbacRegistry
 
     public const RECURRING_RUN = 'recurring.run';
 
+    public const BUDGET_MANAGE = 'budget.manage';
+
     // Chart of accounts & tax
     public const ACCOUNT_MANAGE = 'account.manage';
 
@@ -114,7 +116,7 @@ final class RbacRegistry
             self::BANK_RECORD, self::BANK_RECONCILE,
             self::INVENTORY_ADJUST, self::ASSET_MANAGE, self::ASSET_DEPRECIATE, self::ASSET_DISPOSE,
             self::PERIOD_MANAGE, self::PERIOD_CLOSE, self::YEAR_CLOSE, self::RECURRING_MANAGE, self::RECURRING_RUN,
-            self::ACCOUNT_MANAGE, self::TAX_VIEW, self::TAX_RETURNS_MANAGE, self::REPORTS_VIEW,
+            self::ACCOUNT_MANAGE, self::BUDGET_MANAGE, self::TAX_VIEW, self::TAX_RETURNS_MANAGE, self::REPORTS_VIEW,
         ];
 
         return [
@@ -147,7 +149,7 @@ final class RbacRegistry
             self::BANK_RECORD, self::BANK_RECONCILE,
             self::INVENTORY_ADJUST, self::ASSET_MANAGE, self::ASSET_DEPRECIATE, self::ASSET_DISPOSE,
             self::PERIOD_MANAGE, self::PERIOD_CLOSE, self::YEAR_CLOSE, self::RECURRING_MANAGE, self::RECURRING_RUN,
-            self::ACCOUNT_MANAGE, self::TAX_VIEW, self::TAX_RETURNS_MANAGE,
+            self::ACCOUNT_MANAGE, self::BUDGET_MANAGE, self::TAX_VIEW, self::TAX_RETURNS_MANAGE,
             self::REPORTS_VIEW, self::AUDIT_VIEW, self::COMPANY_MANAGE, self::COMPANY_EXPORT, self::USERS_MANAGE,
         ];
     }
