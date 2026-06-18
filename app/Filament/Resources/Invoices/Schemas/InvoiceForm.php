@@ -10,6 +10,9 @@ use App\Models\Account;
 use App\Models\Customer;
 use App\Models\Item;
 use App\Models\TaxCode;
+use App\Services\Fx\ExchangeRateService;
+use App\Support\Currencies;
+use Filament\Facades\Filament;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
@@ -40,6 +43,25 @@ class InvoiceForm
                     ->options(PricingMode::class)
                     ->default(PricingMode::VatInclusive->value)
                     ->required(),
+                Select::make('currency_code')->label('Currency')
+                    ->options(Currencies::options())->default(Currencies::FUNCTIONAL)
+                    ->live()
+                    ->afterStateUpdated(function ($state, $set, $get): void {
+                        if ($state === Currencies::FUNCTIONAL) {
+                            $set('exchange_rate', 1);
+
+                            return;
+                        }
+                        try {
+                            $set('exchange_rate', app(ExchangeRateService::class)
+                                ->rateFor(Filament::getTenant()->id, $state, $get('invoice_date') ?? now()->toDateString()));
+                        } catch (\Throwable) {
+                            // no stored rate — leave for manual entry
+                        }
+                    })
+                    ->required(),
+                TextInput::make('exchange_rate')->label('Exchange rate (PHP per 1 unit)')
+                    ->numeric()->minValue(0)->default(1)->required(),
                 Textarea::make('memo')->columnSpanFull(),
 
                 Repeater::make('lines')
