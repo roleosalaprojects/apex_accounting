@@ -41,6 +41,16 @@ it('snapshots 1601-EQ figures from the EWT summary', function () {
         ->and($figures['total_ewt'])->toBeGreaterThan(0);
 });
 
+it('computes 2551Q percentage tax at 3% of gross sales', function () {
+    $company = (new DemoCompanySeeder)->build();
+
+    $figures = app(TaxReturnService::class)->compute($company, TaxReturnType::Pct2551Q, 2026, 2);
+
+    expect($figures['rate'])->toBe(0.03)
+        ->and($figures['gross_receipts'])->toBeGreaterThan(0)
+        ->and($figures['tax_due'])->toBe((int) round($figures['gross_receipts'] * 0.03));
+});
+
 it('persists a prepared return with its headline amount', function () {
     $company = (new DemoCompanySeeder)->build();
 

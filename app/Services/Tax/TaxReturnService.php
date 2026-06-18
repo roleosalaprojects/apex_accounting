@@ -8,6 +8,7 @@ use App\Enums\TaxReturnType;
 use App\Models\Company;
 use App\Models\TaxReturn;
 use App\Services\Reports\EwtSummaryReport;
+use App\Services\Reports\SalesBook;
 use App\Services\Reports\VatSummaryReport;
 use Illuminate\Support\Carbon;
 
@@ -21,6 +22,7 @@ final class TaxReturnService
     public function __construct(
         private readonly VatSummaryReport $vat,
         private readonly EwtSummaryReport $ewt,
+        private readonly SalesBook $salesBook,
     ) {}
 
     /**
@@ -49,7 +51,26 @@ final class TaxReturnService
         return match ($type) {
             TaxReturnType::Vat2550Q => $this->vat->build($company->id, $fiscalYear, $quarter, $from, $to),
             TaxReturnType::Ewt1601EQ => $this->ewt->build($company->id, $from, $to),
+            TaxReturnType::Pct2551Q => $this->percentageTax($company->id, $from, $to),
         };
+    }
+
+    /**
+     * 2551Q percentage tax: 3% of gross sales/receipts (NIRC §116), for non-VAT
+     * taxpayers.
+     *
+     * @return array{gross_receipts: int, rate: float, tax_due: int}
+     */
+    private function percentageTax(int $companyId, string $from, string $to): array
+    {
+        $gross = $this->salesBook->build($companyId, $from, $to)['totals']['total'];
+        $rate = 0.03;
+
+        return [
+            'gross_receipts' => $gross,
+            'rate' => $rate,
+            'tax_due' => (int) round($gross * $rate),
+        ];
     }
 
     public function prepare(Company $company, TaxReturnType $type, int $fiscalYear, int $quarter, ?int $userId): TaxReturn
