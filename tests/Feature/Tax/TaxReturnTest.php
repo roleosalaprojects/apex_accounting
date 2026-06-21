@@ -111,3 +111,33 @@ it('exports an EWT alphalist (QAP) grouped by payee', function () {
         ->and($dat)->toContain('D|')   // payee detail line(s)
         ->and($dat)->toContain('C|');  // control footer
 });
+
+it('computes 1701Q individual income tax using graduated rates', function () {
+    $company = makeCompany();
+    $actor = makeUserWithRole($company, CompanyRole::Accountant);
+
+    postEntry($company, '2026-02-01', [
+        ['account_id' => account($company, '1110')->id, 'debit' => 500_000_00],
+        ['account_id' => account($company, '4100')->id, 'credit' => 500_000_00],
+    ], $actor);
+
+    $figures = app(TaxReturnService::class)->compute($company, TaxReturnType::IncomeTax1701Q, 2026, 1);
+
+    // ₱500,000 → ₱22,500 + 20% of (₱500,000 − ₱400,000) = ₱42,500
+    expect($figures['net_income'])->toBe(500_000_00)
+        ->and($figures['tax_due'])->toBe(42_500_00);
+});
+
+it('charges no individual income tax below the ₱250,000 exemption', function () {
+    $company = makeCompany();
+    $actor = makeUserWithRole($company, CompanyRole::Accountant);
+
+    postEntry($company, '2026-02-01', [
+        ['account_id' => account($company, '1110')->id, 'debit' => 200_000_00],
+        ['account_id' => account($company, '4100')->id, 'credit' => 200_000_00],
+    ], $actor);
+
+    $figures = app(TaxReturnService::class)->compute($company, TaxReturnType::IncomeTax1701Q, 2026, 1);
+
+    expect($figures['tax_due'])->toBe(0);
+});

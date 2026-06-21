@@ -55,6 +55,7 @@ final class TaxReturnService
             TaxReturnType::Ewt1601EQ => $this->ewt->build($company->id, $from, $to),
             TaxReturnType::Pct2551Q => $this->percentageTax($company->id, $from, $to),
             TaxReturnType::IncomeTax1702Q => $this->incomeTax($company, $fiscalYear, $quarter),
+            TaxReturnType::IncomeTax1701Q => $this->individualIncomeTax($company, $fiscalYear, $quarter),
         };
     }
 
@@ -79,6 +80,40 @@ final class TaxReturnService
             'tax_due' => max(0, (int) round($netIncome * $rate)),
             'basis' => 'cumulative book net income (before tax adjustments)',
         ];
+    }
+
+    /**
+     * 1701Q quarterly individual income tax: cumulative (YTD) book net income at
+     * the TRAIN graduated rates (effective 2023). A working figure on book net
+     * income before tax adjustments.
+     *
+     * @return array{net_income: int, tax_due: int, basis: string}
+     */
+    private function individualIncomeTax(Company $company, int $fiscalYear, int $quarter): array
+    {
+        $from = $this->quarterRange($company, $fiscalYear, 1)['from'];
+        $to = $this->quarterRange($company, $fiscalYear, $quarter)['to'];
+
+        $netIncome = $this->pnl->build($company->id, $from, $to)['net_income'];
+
+        return [
+            'net_income' => $netIncome,
+            'tax_due' => $this->graduatedTax(max(0, $netIncome)),
+            'basis' => 'cumulative book net income, graduated rates (TRAIN, 2023 onwards)',
+        ];
+    }
+
+    /** Graduated individual income tax (TRAIN, effective 2023) on a centavo amount. */
+    private function graduatedTax(int $taxable): int
+    {
+        return match (true) {
+            $taxable <= 250_000_00 => 0,
+            $taxable <= 400_000_00 => (int) round(0.15 * ($taxable - 250_000_00)),
+            $taxable <= 800_000_00 => (int) round(22_500_00 + 0.20 * ($taxable - 400_000_00)),
+            $taxable <= 2_000_000_00 => (int) round(102_500_00 + 0.25 * ($taxable - 800_000_00)),
+            $taxable <= 8_000_000_00 => (int) round(402_500_00 + 0.30 * ($taxable - 2_000_000_00)),
+            default => (int) round(2_202_500_00 + 0.35 * ($taxable - 8_000_000_00)),
+        };
     }
 
     /**

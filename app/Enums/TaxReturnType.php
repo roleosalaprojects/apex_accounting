@@ -10,6 +10,7 @@ enum TaxReturnType: string
     case Ewt1601EQ = '1601EQ';
     case Pct2551Q = '2551Q';
     case IncomeTax1702Q = '1702Q';
+    case IncomeTax1701Q = '1701Q';
 
     public function label(): string
     {
@@ -18,6 +19,7 @@ enum TaxReturnType: string
             self::Ewt1601EQ => '1601-EQ — Quarterly Expanded Withholding',
             self::Pct2551Q => '2551Q — Quarterly Percentage Tax',
             self::IncomeTax1702Q => '1702Q — Quarterly Income Tax (corporate)',
+            self::IncomeTax1701Q => '1701Q — Quarterly Income Tax (individual)',
         };
     }
 
@@ -29,6 +31,7 @@ enum TaxReturnType: string
             self::Ewt1601EQ => 'total_ewt',
             self::Pct2551Q => 'tax_due',
             self::IncomeTax1702Q => 'tax_due',
+            self::IncomeTax1701Q => 'tax_due',
         };
     }
 }
