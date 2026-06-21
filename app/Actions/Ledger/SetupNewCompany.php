@@ -48,6 +48,7 @@ final class SetupNewCompany
         '4200' => ['Sales — POS Systems (VATable)', AccountSubtype::Income, false],
         '4300' => ['Service Income — POS (VATable)', AccountSubtype::Income, false],
         '4900' => ['Gain/Loss on Asset Disposal', AccountSubtype::OtherIncome, false],
+        '4950' => ['Foreign Exchange Gain (Loss)', AccountSubtype::OtherIncome, false],
         // COGS
         '5100' => ['COGS — Rice', AccountSubtype::Cogs, true],
         '5200' => ['COGS — POS Hardware', AccountSubtype::Cogs, true],
