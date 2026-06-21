@@ -6,6 +6,7 @@ namespace App\Filament\Resources\TaxReturns\Pages;
 
 use App\Filament\Resources\TaxReturns\TaxReturnResource;
 use App\Models\Company;
+use App\Services\Tax\AlphalistExporter;
 use App\Services\Tax\SlspDatExporter;
 use Filament\Actions\Action;
 use Filament\Actions\CreateAction;
@@ -24,7 +25,30 @@ class ListTaxReturns extends ListRecords
             CreateAction::make()->label('Prepare return'),
             $this->slspAction('sales', 'Export SLSP — Sales'),
             $this->slspAction('purchases', 'Export SLSP — Purchases'),
+            $this->alphalistAction(),
         ];
+    }
+
+    private function alphalistAction(): Action
+    {
+        return Action::make('alphalist_ewt')
+            ->label('Export EWT Alphalist (QAP)')
+            ->icon('heroicon-o-arrow-down-tray')
+            ->schema([
+                DatePicker::make('from')->required()->default(now()->startOfQuarter()),
+                DatePicker::make('to')->required()->default(now()->endOfQuarter()),
+            ])
+            ->action(function (array $data): StreamedResponse {
+                /** @var Company $company */
+                $company = Filament::getTenant();
+                $content = app(AlphalistExporter::class)->ewt($company, $data['from'], $data['to']);
+
+                return response()->streamDownload(
+                    fn () => print ($content),
+                    "ewt-alphalist-{$data['to']}.dat",
+                    ['Content-Type' => 'text/plain'],
+                );
+            });
     }
 
     private function slspAction(string $kind, string $label): Action

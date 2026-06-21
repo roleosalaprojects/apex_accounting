@@ -8,6 +8,7 @@ use App\Enums\TaxReturnType;
 use App\Models\Company;
 use App\Models\TaxReturn;
 use App\Services\Reports\EwtSummaryReport;
+use App\Services\Reports\ProfitAndLossReport;
 use App\Services\Reports\SalesBook;
 use App\Services\Reports\VatSummaryReport;
 use Illuminate\Support\Carbon;
@@ -23,6 +24,7 @@ final class TaxReturnService
         private readonly VatSummaryReport $vat,
         private readonly EwtSummaryReport $ewt,
         private readonly SalesBook $salesBook,
+        private readonly ProfitAndLossReport $pnl,
     ) {}
 
     /**
@@ -52,7 +54,31 @@ final class TaxReturnService
             TaxReturnType::Vat2550Q => $this->vat->build($company->id, $fiscalYear, $quarter, $from, $to),
             TaxReturnType::Ewt1601EQ => $this->ewt->build($company->id, $from, $to),
             TaxReturnType::Pct2551Q => $this->percentageTax($company->id, $from, $to),
+            TaxReturnType::IncomeTax1702Q => $this->incomeTax($company, $fiscalYear, $quarter),
         };
+    }
+
+    /**
+     * 1702Q quarterly income tax: cumulative (YTD) book net income at the 25%
+     * regular corporate rate, floored at zero. The base is book net income
+     * before tax adjustments — a working figure, not the final taxable income.
+     *
+     * @return array{net_income: int, rate: float, tax_due: int, basis: string}
+     */
+    private function incomeTax(Company $company, int $fiscalYear, int $quarter): array
+    {
+        $from = $this->quarterRange($company, $fiscalYear, 1)['from'];
+        $to = $this->quarterRange($company, $fiscalYear, $quarter)['to'];
+
+        $netIncome = $this->pnl->build($company->id, $from, $to)['net_income'];
+        $rate = 0.25;
+
+        return [
+            'net_income' => $netIncome,
+            'rate' => $rate,
+            'tax_due' => max(0, (int) round($netIncome * $rate)),
+            'basis' => 'cumulative book net income (before tax adjustments)',
+        ];
     }
 
     /**

@@ -7,6 +7,7 @@ use App\Enums\TaxReturnType;
 use App\Filament\Resources\TaxReturns\Pages\ListTaxReturns;
 use App\Services\Reports\EwtSummaryReport;
 use App\Services\Reports\VatSummaryReport;
+use App\Services\Tax\AlphalistExporter;
 use App\Services\Tax\SlspDatExporter;
 use App\Services\Tax\TaxReturnService;
 use App\Support\Rbac\RbacRegistry;
@@ -88,4 +89,24 @@ it('renders the tax returns list page', function () {
     Filament::setTenant($company);
 
     Livewire::test(ListTaxReturns::class)->assertOk();
+});
+
+it('computes 1702Q income tax at 25% of cumulative book net income', function () {
+    $company = (new DemoCompanySeeder)->build();
+
+    $figures = app(TaxReturnService::class)->compute($company, TaxReturnType::IncomeTax1702Q, 2026, 2);
+
+    expect($figures['rate'])->toBe(0.25)
+        ->and($figures['net_income'])->toBe(184_600_00) // §20 golden master (Jan–Jun cumulative)
+        ->and($figures['tax_due'])->toBe((int) round(184_600_00 * 0.25));
+});
+
+it('exports an EWT alphalist (QAP) grouped by payee', function () {
+    $company = (new DemoCompanySeeder)->build();
+
+    $dat = app(AlphalistExporter::class)->ewt($company, '2026-01-01', '2026-12-31');
+
+    expect($dat)->toContain('H|QAP|')  // header
+        ->and($dat)->toContain('D|')   // payee detail line(s)
+        ->and($dat)->toContain('C|');  // control footer
 });
