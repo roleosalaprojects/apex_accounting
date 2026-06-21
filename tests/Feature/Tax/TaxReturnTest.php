@@ -83,12 +83,13 @@ it('gates tax returns to owners and accountants, not viewers', function () {
         ->and($viewer->hasCompanyPermission($company->id, RbacRegistry::TAX_RETURNS_MANAGE))->toBeFalse();
 });
 
-it('renders the tax returns list page', function () {
+it('renders the tax returns list with a prepared return', function () {
     $company = (new DemoCompanySeeder)->build();
+    app(TaxReturnService::class)->prepare($company, TaxReturnType::Vat2550Q, 2026, 2, null);
     $this->actingAs(makeUserWithRole($company, CompanyRole::Owner));
     Filament::setTenant($company);
 
-    Livewire::test(ListTaxReturns::class)->assertOk();
+    Livewire::test(ListTaxReturns::class)->assertOk()->assertSee('2550Q');
 });
 
 it('computes 1702Q income tax at 25% of cumulative book net income', function () {
