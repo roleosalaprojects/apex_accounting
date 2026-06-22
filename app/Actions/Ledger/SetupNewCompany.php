@@ -39,6 +39,8 @@ final class SetupNewCompany
         '2100' => ['Accounts Payable', AccountSubtype::AccountsPayable, true],
         '2200' => ['Output VAT', AccountSubtype::VatPayable, true],
         '2210' => ['EWT Payable', AccountSubtype::WithholdingPayable, true],
+        '2220' => ['Withholding Tax Payable — Compensation', AccountSubtype::WithholdingPayable, true],
+        '2230' => ['Statutory Payables', AccountSubtype::OtherCurrentLiability, true],
         // Equity
         '3100' => ['Share Capital', AccountSubtype::Equity, false],
         '3900' => ['Retained Earnings', AccountSubtype::RetainedEarnings, true],

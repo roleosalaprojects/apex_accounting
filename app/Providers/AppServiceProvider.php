@@ -26,6 +26,8 @@ class AppServiceProvider extends ServiceProvider
         Passport::tokensCan([
             'je:post' => 'Post journal entries',
             'invoice:post' => 'Post invoices',
+            'pos:post' => 'Post POS sales / Z-readings',
+            'hrms:post' => 'Post HRMS payroll',
             'reports:read' => 'Read reports',
         ]);
 

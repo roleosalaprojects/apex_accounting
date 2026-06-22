@@ -3,8 +3,10 @@
 declare(strict_types=1);
 
 use App\Http\Controllers\Api\V1\AccountController;
+use App\Http\Controllers\Api\V1\HrmsPayrollController;
 use App\Http\Controllers\Api\V1\InvoiceController;
 use App\Http\Controllers\Api\V1\JournalEntryController;
+use App\Http\Controllers\Api\V1\PosZReadingController;
 use App\Http\Controllers\Api\V1\ReportController;
 use Illuminate\Support\Facades\Route;
 
@@ -18,6 +20,14 @@ Route::prefix('v1')->middleware('auth:api')->group(function (): void {
 
     Route::post('invoices', [InvoiceController::class, 'store'])
         ->middleware(['scope:invoice:post', 'idempotency']);
+
+    // Apex POS — end-of-day sales / Z-reading mapped to a journal entry.
+    Route::post('pos/z-readings', [PosZReadingController::class, 'store'])
+        ->middleware(['scope:pos:post', 'idempotency']);
+
+    // Charlie HRMS — payroll summary mapped to a journal entry.
+    Route::post('hrms/payroll', [HrmsPayrollController::class, 'store'])
+        ->middleware(['scope:hrms:post', 'idempotency']);
 
     Route::get('accounts', [AccountController::class, 'index'])
         ->middleware('scope:reports:read');
