@@ -10,6 +10,8 @@ use App\Models\BankStatementLine;
 use App\Services\Banking\BankStatementImporter;
 use App\Support\Rbac\RbacRegistry;
 use Filament\Facades\Filament;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 
 beforeEach(function () {
@@ -110,4 +112,27 @@ it('suggests and links a matching ledger entry', function () {
 
     expect($line->fresh()->status)->toBe('matched')
         ->and($line->fresh()->journal_entry_id)->toBe($entry->id);
+});
+
+it('imports a CSV through the Filament upload action', function () {
+    Storage::fake('local');
+    $this->actingAs(makeUserWithRole($this->company, CompanyRole::Owner));
+    Filament::setTenant($this->company);
+
+    $csv = "date,description,amount,reference\n"
+        .'2026-03-15,Customer deposit,"1,500.00",REF1'."\n"
+        .'2026-03-16,Bank service fee,-50.00,FEE'."\n";
+
+    $file = UploadedFile::fake()->createWithContent('statement.csv', $csv);
+
+    Livewire::test(ListBankStatementLines::class)
+        ->callAction('import', data: [
+            'bank_account_id' => $this->bank->id,
+            'file' => $file,
+        ]);
+
+    $lines = BankStatementLine::query()->where('bank_account_id', $this->bank->id)->orderBy('txn_date')->get();
+    expect($lines)->toHaveCount(2)
+        ->and($lines[0]->amount)->toBe(1500_00)
+        ->and($lines[1]->amount)->toBe(-50_00);
 });
