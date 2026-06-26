@@ -3,7 +3,9 @@
 declare(strict_types=1);
 
 use App\Enums\CompanyRole;
+use App\Enums\PosZReadingStatus;
 use App\Models\JournalEntry;
+use App\Models\PosZReading;
 use Laravel\Passport\Passport;
 
 beforeEach(function () {
@@ -31,30 +33,37 @@ function posZreadingPayload(int $companyId): array
     ];
 }
 
-it('posts a POS Z-reading as a balanced journal entry (pos:post)', function () {
+it('stages a POS Z-reading without posting it to the ledger (pos:post)', function () {
     Passport::actingAs($this->client, ['pos:post']);
 
     $response = $this->postJson('/api/v1/pos/z-readings', posZreadingPayload($this->company->id));
 
+    // The reading lands in the integration inbox as pending — nothing posts.
     $response->assertCreated()
-        ->assertJsonPath('status', 'posted')
+        ->assertJsonPath('status', PosZReadingStatus::Pending->value)
+        ->assertJsonPath('reference', 'Z-0001')
         ->assertJsonPath('total_debits', 162_000_00);
 
-    expect(JournalEntry::query()->count())->toBe(1);
+    expect(JournalEntry::query()->count())->toBe(0)
+        ->and(PosZReading::query()->count())->toBe(1);
 
-    $entry = JournalEntry::query()->with('lines')->first();
-    expect($entry->lines->firstWhere('account_id', account($this->company, '2200')->id)->credit->minor)->toBe(12_000_00)
-        ->and($entry->lines->firstWhere('account_id', account($this->company, '1110')->id)->debit->minor)->toBe(100_000_00);
+    $reading = PosZReading::query()->first();
+    expect($reading->status)->toBe(PosZReadingStatus::Pending)
+        ->and($reading->vatable_sales)->toBe(100_000_00)
+        ->and($reading->vat_amount)->toBe(12_000_00)
+        ->and($reading->tenders)->toBe(['cash' => 100_000_00, 'card' => 60_000_00])
+        ->and($reading->journal_entry_id)->toBeNull();
 });
 
-it('rejects an inconsistent (unbalanced) Z-reading', function () {
+it('rejects an inconsistent (unbalanced) Z-reading without staging it', function () {
     Passport::actingAs($this->client, ['pos:post']);
 
     $payload = posZreadingPayload($this->company->id);
     $payload['tenders'] = ['cash' => 1_000_00]; // does not match the sales total
 
     $this->postJson('/api/v1/pos/z-readings', $payload)->assertStatus(422);
-    expect(JournalEntry::query()->count())->toBe(0);
+    expect(PosZReading::query()->count())->toBe(0)
+        ->and(JournalEntry::query()->count())->toBe(0);
 });
 
 it('rejects a POS Z-reading without the pos:post scope', function () {
@@ -74,7 +83,7 @@ it('replays a POS Z-reading idempotently', function () {
     $second->assertCreated()->assertHeader('Idempotent-Replay', 'true');
 
     expect($first->json('id'))->toBe($second->json('id'))
-        ->and(JournalEntry::query()->count())->toBe(1);
+        ->and(PosZReading::query()->count())->toBe(1);
 });
 
 it('posts an HRMS payroll summary as a balanced journal entry (hrms:post)', function () {

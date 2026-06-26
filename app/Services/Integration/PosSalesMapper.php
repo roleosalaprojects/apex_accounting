@@ -4,20 +4,16 @@ declare(strict_types=1);
 
 namespace App\Services\Integration;
 
-use App\Actions\Ledger\PostJournalEntry;
-use App\Data\Ledger\JournalEntryData;
 use App\Data\Ledger\JournalLineData;
-use App\Models\Company;
-use App\Models\JournalEntry;
-use App\Models\User;
-use Spatie\LaravelData\DataCollection;
 
 /**
- * Maps a POS daily sales / Z-reading into a balanced journal entry posted through
- * the chokepoint, so Apex POS never needs the chart of accounts (§14):
+ * Maps a POS daily sales / Z-reading payload into balanced journal lines, so Apex
+ * POS never needs the chart of accounts (§14):
  *   Dr tenders (cash/card/…) + Dr discounts
  *      Cr sales (VATable/exempt/zero-rated) + Cr output VAT
- * The figures must net out; PostJournalEntry rejects an unbalanced entry.
+ * This is a pure mapper — it builds lines and reports totals but never posts.
+ * Importing a staged Z-reading (ImportPosZReading) feeds these lines into a DRAFT
+ * journal entry for review; the figures must net out or the draft is rejected.
  */
 final class PosSalesMapper
 {
@@ -33,16 +29,18 @@ final class PosSalesMapper
     ];
 
     public function __construct(
-        private readonly PostJournalEntry $post,
         private readonly IntegrationAccountMap $accounts,
     ) {}
 
     /**
+     * Build the balanced journal lines for a Z-reading payload.
+     *
      * @param  array<string, mixed>  $data
+     * @return list<JournalLineData>
      */
-    public function post(Company $company, array $data, ?User $actor): JournalEntry
+    public function lines(int $companyId, array $data): array
     {
-        $acc = $this->accounts->pos($company->id);
+        $acc = $this->accounts->pos($companyId);
         $lines = [];
 
         $tenders = is_array($data['tenders'] ?? null) ? $data['tenders'] : [];
@@ -65,17 +63,30 @@ final class PosSalesMapper
             }
         }
 
-        $reference = isset($data['reference']) ? (string) $data['reference'] : null;
+        return $lines;
+    }
 
-        return $this->post->handle(new JournalEntryData(
-            company_id: $company->id,
-            entry_date: (string) $data['business_date'],
-            memo: 'POS sales'.($reference !== null ? ' — '.$reference : ''),
-            lines: new DataCollection(JournalLineData::class, $lines),
-            source_type: 'pos.zreading',
-            external_reference_no: $reference,
-            created_by: $actor?->id,
-            approved_by: $actor?->id,
-        ), $actor);
+    /**
+     * Arithmetic debit/credit totals for a payload, without resolving accounts —
+     * used to reject an inconsistent Z-reading at the API boundary.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array{0: int, 1: int} [debits, credits] in minor units
+     */
+    public function totals(array $data): array
+    {
+        $tenders = is_array($data['tenders'] ?? null) ? $data['tenders'] : [];
+
+        $debits = (int) ($data['discounts'] ?? 0);
+        foreach (self::TENDERS as $tender) {
+            $debits += (int) ($tenders[$tender] ?? 0);
+        }
+
+        $credits = 0;
+        foreach (self::SALES as $field) {
+            $credits += (int) ($data[$field] ?? 0);
+        }
+
+        return [$debits, $credits];
     }
 }
