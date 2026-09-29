@@ -31,9 +31,12 @@ jobs:
           cache: npm
 
       - name: Prepare application
+        # The integration API tests issue Passport tokens, which need the OAuth
+        # signing keys; they are gitignored, so generate a throwaway pair.
         run: |
           cp .env.example .env
           php artisan key:generate
+          php artisan passport:keys
 
       - name: Build front-end assets
         # The Filament panel renders a Vite theme; the admin-page test fails
