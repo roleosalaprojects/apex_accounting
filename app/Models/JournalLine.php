@@ -32,6 +32,10 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
  * @property int|null $branch_id
  * @property-read JournalEntry|null $journalEntry
  * @property-read Account|null $account
+ * @property-read Department|null $department
+ * @property-read Project|null $project
+ * @property-read Fund|null $fund
+ * @property-read Branch|null $branch
  */
 final class JournalLine extends Model
 {
@@ -87,5 +91,37 @@ final class JournalLine extends Model
     public function partner(): MorphTo
     {
         return $this->morphTo();
+    }
+
+    /**
+     * @return BelongsTo<Department, $this>
+     */
+    public function department(): BelongsTo
+    {
+        return $this->belongsTo(Department::class);
+    }
+
+    /**
+     * @return BelongsTo<Project, $this>
+     */
+    public function project(): BelongsTo
+    {
+        return $this->belongsTo(Project::class);
+    }
+
+    /**
+     * @return BelongsTo<Fund, $this>
+     */
+    public function fund(): BelongsTo
+    {
+        return $this->belongsTo(Fund::class);
+    }
+
+    /**
+     * @return BelongsTo<Branch, $this>
+     */
+    public function branch(): BelongsTo
+    {
+        return $this->belongsTo(Branch::class);
     }
 }

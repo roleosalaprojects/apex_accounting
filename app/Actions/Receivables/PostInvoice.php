@@ -274,11 +274,12 @@ final class PostInvoice
 
     /**
      * Relieve inventory at the current weighted average and post the COGS entry
-     * (§9): Dr 5100/5200 COGS / Cr 1300/1310 Inventory.
+     * (§9): Dr 5100/5200 COGS / Cr 1300/1310 Inventory. Each line keeps its
+     * sale's dimensions, so departmental or project margins see the cost too.
      */
     private function postCogs(Company $company, Invoice $invoice, InvoiceData $data, ?User $actor): void
     {
-        /** @var array<string, array{cogs: int, inventory: int, amount: int}> $byPair */
+        /** @var array<string, array{cogs: int, inventory: int, amount: int, dims: array{department_id: int|null, project_id: int|null, fund_id: int|null, branch_id: int|null}}> $byPair */
         $byPair = [];
 
         foreach ($data->lines as $lineData) {
@@ -302,8 +303,15 @@ final class PostInvoice
                 continue;
             }
 
-            $key = $item->cogs_account_id.':'.$item->inventory_account_id;
-            $byPair[$key] ??= ['cogs' => $item->cogs_account_id, 'inventory' => $item->inventory_account_id, 'amount' => 0];
+            $dims = [
+                'department_id' => $lineData->department_id ?? $data->department_id,
+                'project_id' => $lineData->project_id ?? $data->project_id,
+                'fund_id' => $lineData->fund_id ?? $data->fund_id,
+                'branch_id' => $lineData->branch_id ?? $data->branch_id,
+            ];
+
+            $key = $item->cogs_account_id.':'.$item->inventory_account_id.':'.implode(':', array_map('strval', $dims));
+            $byPair[$key] ??= ['cogs' => $item->cogs_account_id, 'inventory' => $item->inventory_account_id, 'amount' => 0, 'dims' => $dims];
             $byPair[$key]['amount'] += $cogs;
         }
 
@@ -313,8 +321,18 @@ final class PostInvoice
 
         $lines = [];
         foreach ($byPair as $pair) {
-            $lines[] = new JournalLineData(account_id: $pair['cogs'], debit: $pair['amount'], memo: 'COGS');
-            $lines[] = new JournalLineData(account_id: $pair['inventory'], credit: $pair['amount'], memo: 'Inventory relief');
+            foreach ([['cogs', 'debit', 'COGS'], ['inventory', 'credit', 'Inventory relief']] as [$account, $side, $memo]) {
+                $lines[] = new JournalLineData(
+                    account_id: $pair[$account],
+                    debit: $side === 'debit' ? $pair['amount'] : 0,
+                    credit: $side === 'credit' ? $pair['amount'] : 0,
+                    memo: $memo,
+                    department_id: $pair['dims']['department_id'],
+                    project_id: $pair['dims']['project_id'],
+                    fund_id: $pair['dims']['fund_id'],
+                    branch_id: $pair['dims']['branch_id'],
+                );
+            }
         }
 
         $this->post->handle(new JournalEntryData(

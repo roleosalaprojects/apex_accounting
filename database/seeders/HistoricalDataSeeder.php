@@ -35,15 +35,20 @@ use App\Models\Account;
 use App\Models\AccountingPeriod;
 use App\Models\Asset;
 use App\Models\AssetCategory;
+use App\Models\BankAccount;
 use App\Models\Bill;
+use App\Models\Branch;
 use App\Models\Budget;
 use App\Models\Company;
 use App\Models\Customer;
 use App\Models\CustomerPayment;
+use App\Models\Department;
+use App\Models\Fund;
 use App\Models\Invoice;
 use App\Models\Item;
 use App\Models\JournalEntry;
 use App\Models\PosZReading;
+use App\Models\Project;
 use App\Models\RecurringTemplate;
 use App\Models\TaxCode;
 use App\Models\User;
@@ -54,6 +59,7 @@ use App\Services\Tax\TaxReturnService;
 use App\Support\CompanyContext;
 use Carbon\CarbonImmutable;
 use Closure;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
@@ -63,6 +69,11 @@ use RuntimeException;
  * October 2023 up to today, so reports, aging and the dashboard have history
  * to show. Everything posts through the real Actions, so the ledger, VAT
  * buckets, withholding, weighted-average COGS and numbering stay consistent.
+ *
+ * Every line is tagged with the reporting dimensions a bookkeeper would use:
+ * departments (rice trading, POS solutions, technical services, logistics,
+ * admin), branches (head office, warehouse, showroom), funds (general, capex,
+ * DOST SETUP) and projects (client POS rollouts and a warehouse expansion).
  *
  * Deterministic (fixed random seed) and refuses to run twice. Fiscal years are
  * left open so each year's P&L stays visible. Creates the demo company first
@@ -75,6 +86,21 @@ final class HistoricalDataSeeder extends Seeder
     private const START = '2023-10-01';
 
     private const SEED = 20231001;
+
+    /** How payroll splits across departments: department => [percent, branch]. */
+    private const PAYROLL_SPLIT = [
+        'RICE' => [25, 'WH'],
+        'POS' => [20, 'QC'],
+        'TECH' => [20, 'QC'],
+        'LOG' => [20, 'WH'],
+        'ADMIN' => [15, 'HO'],
+    ];
+
+    /** @var array<string, array<string, int>> dimension => code => id */
+    private array $dims = [];
+
+    /** @var list<array{code: string, customer: string, from: string, to: string}> client projects and when they ran */
+    private array $clientProjects = [];
 
     private Company $company;
 
@@ -179,6 +205,11 @@ final class HistoricalDataSeeder extends Seeder
         foreach (Account::query()->get(['id', 'code']) as $account) {
             $this->accounts[$account->code] = $account->id;
         }
+        BankAccount::query()->firstOrCreate(
+            ['company_id' => $this->company->id, 'account_id' => $this->accounts['1120']],
+            ['bank_name' => 'BDO Unibank', 'account_no' => '0045-1234-5678', 'is_active' => true],
+        );
+
         foreach (TaxCode::query()->get(['id', 'code']) as $code) {
             $this->codes[$code->code] = $code->id;
         }
@@ -190,6 +221,40 @@ final class HistoricalDataSeeder extends Seeder
             ?? throw new RuntimeException('Demo item RICE-25 is missing.'));
         $this->posItem = (int) (Item::query()->where('sku', 'POS-T1')->value('id')
             ?? throw new RuntimeException('Demo item POS-T1 is missing.'));
+
+        $this->dims = [
+            'department' => $this->dimension(Department::class, [
+                'RICE' => 'Rice Trading',
+                'POS' => 'POS Solutions',
+                'TECH' => 'Technical Services',
+                'LOG' => 'Warehouse & Logistics',
+                'ADMIN' => 'Administration & Finance',
+            ]),
+            'branch' => $this->dimension(Branch::class, [
+                'HO' => 'Head Office — Cabanatuan City',
+                'WH' => 'San Jose Warehouse',
+                'QC' => 'Quezon City Showroom',
+            ]),
+            'fund' => $this->dimension(Fund::class, [
+                'GEN' => 'General Fund',
+                'CAPEX' => 'Capital Expenditure Fund',
+                'SETUP' => 'DOST SETUP Assistance',
+            ]),
+            'project' => $this->dimension(Project::class, [
+                'KAPE-24' => "Kape't Kwentuhan POS upgrade",
+                'BOTIKA-25' => 'BotikaPlus 6-store rollout',
+                'WHX-25' => 'San Jose warehouse expansion',
+                'HWARE-26' => 'Luzon Hardware inventory go-live',
+                'SUNRISE-26' => 'Sunrise Bakeshop multi-branch setup',
+            ], finished: ['KAPE-24', 'BOTIKA-25', 'WHX-25']),
+        ];
+
+        $this->clientProjects = [
+            ['code' => 'KAPE-24', 'customer' => "Kape't Kwentuhan Café", 'from' => '2024-02-01', 'to' => '2024-07-31'],
+            ['code' => 'BOTIKA-25', 'customer' => 'BotikaPlus Pharmacy', 'from' => '2025-01-01', 'to' => '2025-09-30'],
+            ['code' => 'HWARE-26', 'customer' => 'Luzon Hardware Depot', 'from' => '2026-02-01', 'to' => '2026-12-31'],
+            ['code' => 'SUNRISE-26', 'customer' => 'Sunrise Bakeshop', 'from' => '2026-05-01', 'to' => '2026-12-31'],
+        ];
 
         $this->vendors = [
             'rice_trader' => $this->vendor('Rice Trader'),
@@ -235,28 +300,52 @@ final class HistoricalDataSeeder extends Seeder
 
         if ($ym === '2023-10') {
             $this->on(1, 0, fn (CarbonImmutable $d) => $this->journal($d, 'Initial share capital', [['1120', 3_500_000_00], ['3100', -3_500_000_00]]));
-            $this->on(5, 1, fn (CarbonImmutable $d) => $this->buyAsset($d, 'motors', 'Vehicles', '6-wheeler delivery truck', 1_150_000_00, 150_000_00, 60));
-            $this->on(9, 1, fn (CarbonImmutable $d) => $this->buyAsset($d, 'computers', 'Office & IT Equipment', 'Laptops, printers and network gear', 180_000_00, 0, 36));
+            $this->on(5, 1, fn (CarbonImmutable $d) => $this->buyAsset($d, 'motors', 'Vehicles', '6-wheeler delivery truck', 1_150_000_00, 150_000_00, 60,
+                $this->tags('LOG', 'WH', 'CAPEX'), ['LTO registration and first-year insurance', '6600', 48_000_00]));
+            $this->on(9, 1, fn (CarbonImmutable $d) => $this->buyAsset($d, 'computers', 'Office & IT Equipment', 'Laptops, printers and network gear', 180_000_00, 0, 36,
+                $this->tags('ADMIN', 'HO', 'CAPEX'), ['Setup, configuration and data migration', '6500', 15_000_00]));
         }
         if ($ym === '2025-01') {
-            $this->on(14, 1, fn (CarbonImmutable $d) => $this->buyAsset($d, 'equipment', 'Warehouse Equipment', 'Warehouse forklift (2.5 t)', 650_000_00, 50_000_00, 60));
+            $this->on(14, 1, fn (CarbonImmutable $d) => $this->buyAsset($d, 'equipment', 'Warehouse Equipment', 'Warehouse forklift (2.5 t)', 650_000_00, 50_000_00, 60,
+                $this->tags('LOG', 'WH', 'SETUP', 'WHX-25'), ['Operator training and commissioning', '6500', 35_000_00]));
         }
 
         // Purchases. The June 2026 golden-master fixture already carries that month's rent.
         if ($ym !== '2026-06') {
-            $this->on(1, 1, fn (CarbonImmutable $d) => $this->bill($d, 'landlord', "Office and warehouse rent — {$label}", '6100', $this->rent($month), VatBucket::Common, inclusive: true, payInDays: 4));
+            $rent = $this->rent($month);
+            $officeShare = (int) round($rent * 0.6);
+            $this->on(1, 1, fn (CarbonImmutable $d) => $this->bill($d, 'landlord', [
+                $this->line("Office rent — {$label}", '6100', $officeShare, $this->tags('ADMIN', 'HO')),
+                $this->line("Warehouse rent — {$label}", '6100', $rent - $officeShare, $this->tags('LOG', 'WH')),
+            ], VatBucket::Common, inclusive: true, payInDays: 4));
         }
         $this->on(3, 1, fn (CarbonImmutable $d) => $this->buyRice($d, $g));
         $this->on(6, 1, fn (CarbonImmutable $d) => $this->buyPos($d, $g));
         $this->on(17, 1, fn (CarbonImmutable $d) => $this->buyRice($d, $g));
-        $this->on(20, 1, fn (CarbonImmutable $d) => $this->bill($d, 'electric', "Electricity — {$label}", '6200', $this->electricity($month, $g), VatBucket::Common, inclusive: true, payInDays: 12));
-        $this->on(22, 1, fn (CarbonImmutable $d) => $this->bill($d, 'telecom', "Fiber internet — {$label}", '6200', 3_499_00, VatBucket::Common, inclusive: true, payInDays: 10));
-        $this->on(25, 1, fn (CarbonImmutable $d) => $this->bill($d, 'trucking', "Rice deliveries — {$label}", '6600', $this->pesos(7_000, 14_000, $g), VatBucket::Common, payInDays: mt_rand(15, 35)));
+        $this->on(20, 1, function (CarbonImmutable $d) use ($month, $g, $label): void {
+            $power = $this->electricity($month, $g);
+            [$office, $warehouse] = [(int) round($power * 0.4), (int) round($power * 0.35)];
+            $this->bill($d, 'electric', [
+                $this->line("Electricity, head office — {$label}", '6200', $office, $this->tags('ADMIN', 'HO')),
+                $this->line("Electricity, warehouse — {$label}", '6200', $warehouse, $this->tags('LOG', 'WH')),
+                $this->line("Electricity, showroom — {$label}", '6200', $power - $office - $warehouse, $this->tags('POS', 'QC')),
+            ], VatBucket::Common, inclusive: true, payInDays: 12);
+        });
+        $this->on(22, 1, fn (CarbonImmutable $d) => $this->bill($d, 'telecom', [
+            $this->line("Fiber internet — {$label}", '6200', 3_499_00, $this->tags('ADMIN', 'HO')),
+        ], VatBucket::Common, inclusive: true, payInDays: 10));
+        $this->on(25, 1, fn (CarbonImmutable $d) => $this->bill($d, 'trucking', [
+            $this->line("Rice deliveries — {$label}", '6600', $this->pesos(7_000, 14_000, $g), $this->tags('LOG', 'WH')),
+        ], VatBucket::Common, payInDays: mt_rand(15, 35)));
         if ($month->month % 2 === 0) {
-            $this->on(12, 1, fn (CarbonImmutable $d) => $this->bill($d, 'supplies', 'Office supplies', '6400', $this->pesos(1_500, 6_000, $g), VatBucket::Common, payInDays: mt_rand(10, 30)));
+            $this->on(12, 1, fn (CarbonImmutable $d) => $this->bill($d, 'supplies', [
+                $this->line('Office supplies', '6400', $this->pesos(1_500, 6_000, $g), $this->tags('ADMIN', 'HO')),
+            ], VatBucket::Common, payInDays: mt_rand(10, 30)));
         }
         if (in_array($month->month, [1, 4, 7, 10], true)) {
-            $this->on(15, 1, fn (CarbonImmutable $d) => $this->bill($d, 'cpa', "Bookkeeping and tax retainer — Q{$month->quarter} {$month->year}", '6500', 30_000_00, VatBucket::Common, payInDays: 30));
+            $this->on(15, 1, fn (CarbonImmutable $d) => $this->bill($d, 'cpa', [
+                $this->line("Bookkeeping and tax retainer — Q{$month->quarter} {$month->year}", '6500', 30_000_00, $this->tags('ADMIN', 'HO')),
+            ], VatBucket::Common, payInDays: 30));
         }
 
         // Sales: rice (VAT-exempt), POS terminals (VATable) and POS services.
@@ -339,7 +428,9 @@ final class HistoricalDataSeeder extends Seeder
         $cost = $this->pesos(1_820, 1_900) + (int) round($this->yearsIn($date) * 70) * 100;
         $vendor = ['rice_trader', 'rice_mill', 'rice_coop'][mt_rand(0, 2)];
 
-        $this->bill($date, $vendor, 'Rice 25kg', '1300', $cost, null, qty: (string) $qty, itemId: $this->riceItem, tax: 'EXEMPT', payInDays: mt_rand(7, 30));
+        $this->bill($date, $vendor, [
+            $this->line('Rice 25kg', '1300', $cost, $this->tags('RICE', 'WH'), (string) $qty, $this->riceItem),
+        ], null, tax: 'EXEMPT', payInDays: mt_rand(7, 30));
         $this->riceStock += $qty;
     }
 
@@ -353,13 +444,25 @@ final class HistoricalDataSeeder extends Seeder
         $cost = $this->pesos(19_200, 19_800) + (int) round($this->yearsIn($date) * 500) * 100;
         $vendor = mt_rand(0, 1) === 0 ? 'pos_supplier' : 'tech_hub';
 
-        $this->bill($date, $vendor, 'POS terminal (touchscreen, printer, cash drawer)', '1310', $cost, VatBucket::DirectVatable, qty: (string) $qty, itemId: $this->posItem, payInDays: mt_rand(20, 40));
+        $this->bill($date, $vendor, [
+            $this->line('POS terminal (touchscreen, printer, cash drawer)', '1310', $cost, $this->tags('POS', 'QC'), (string) $qty, $this->posItem),
+        ], VatBucket::DirectVatable, payInDays: mt_rand(20, 40));
         $this->posStock += $qty;
     }
 
-    private function buyAsset(CarbonImmutable $date, string $vendor, string $category, string $name, int $cost, int $salvage, int $lifeMonths): void
+    /**
+     * Capitalise an asset and expense its incidental costs on the same bill,
+     * both carrying the purchase's tags.
+     *
+     * @param  array{department_id: int|null, project_id: int|null, fund_id: int|null, branch_id: int|null}  $tags
+     * @param  array{0: string, 1: string, 2: int}  $expense  [description, account code, amount]
+     */
+    private function buyAsset(CarbonImmutable $date, string $vendor, string $category, string $name, int $cost, int $salvage, int $lifeMonths, array $tags, array $expense): void
     {
-        $this->bill($date, $vendor, $name, '1500', $cost, VatBucket::Common, payInDays: 30);
+        $this->bill($date, $vendor, [
+            $this->line($name, '1500', $cost, $tags),
+            $this->line($expense[0], $expense[1], $expense[2], $tags),
+        ], VatBucket::Common, payInDays: 30);
 
         $assetCategory = AssetCategory::query()->where('name', $category)->first()
             ?? AssetCategory::factory()->create([
@@ -386,17 +489,16 @@ final class HistoricalDataSeeder extends Seeder
         app(PlaceAssetInService::class)->handle($asset, $date->toDateString());
     }
 
+    /**
+     * @param  list<array<string, mixed>>  $lines  from line()
+     */
     private function bill(
         CarbonImmutable $date,
         string $vendor,
-        string $description,
-        string $account,
-        int $unitPrice,
+        array $lines,
         ?VatBucket $bucket,
         bool $inclusive = false,
         int $payInDays = 30,
-        string $qty = '1',
-        ?int $itemId = null,
         string $tax = 'VAT12',
     ): Bill {
         $bill = app(PostBill::class)->handle(BillData::from([
@@ -405,20 +507,34 @@ final class HistoricalDataSeeder extends Seeder
             'bill_date' => $date->toDateString(),
             'due_date' => $date->addDays(30)->toDateString(),
             'pricing_mode' => $inclusive ? 'vat_inclusive' : 'vat_exclusive',
-            'lines' => [[
-                'description' => $description,
-                'qty' => $qty,
-                'unit_price' => $unitPrice,
+            'lines' => array_map(fn (array $line): array => [
+                ...$line,
                 'tax_code_id' => $this->codes[$tax],
                 'vat_bucket' => $bucket?->value,
-                'item_id' => $itemId,
-                'expense_or_asset_account_id' => $this->accounts[$account],
-            ]],
+            ], $lines),
         ]), $this->actor);
 
         $this->schedule($date->addDays($payInDays), 'pay', $bill->id);
 
         return $bill;
+    }
+
+    /**
+     * One bill line, tagged.
+     *
+     * @param  array{department_id: int|null, project_id: int|null, fund_id: int|null, branch_id: int|null}  $tags
+     * @return array<string, mixed>
+     */
+    private function line(string $description, string $account, int $unitPrice, array $tags, string $qty = '1', ?int $itemId = null): array
+    {
+        return [
+            'description' => $description,
+            'qty' => $qty,
+            'unit_price' => $unitPrice,
+            'item_id' => $itemId,
+            'expense_or_asset_account_id' => $this->accounts[$account],
+            ...$tags,
+        ];
     }
 
     // --- Sales -----------------------------------------------------------
@@ -432,8 +548,10 @@ final class HistoricalDataSeeder extends Seeder
 
         ['customer' => $customer, 'slow' => $slow] = $this->riceBuyers[mt_rand(0, count($this->riceBuyers) - 1)];
         $price = $this->pesos(2_330, 2_420) + (int) round($this->yearsIn($date) * 90) * 100;
+        // Most rice ships from the warehouse; walk-in buyers are served at head office.
+        $tags = $this->tags('RICE', mt_rand(1, 100) <= 70 ? 'WH' : 'HO');
 
-        $invoice = $this->invoice($date, $customer, 'Rice 25kg', (string) $qty, $price, 'EXEMPT', '4100', $this->riceItem);
+        $invoice = $this->invoice($date, $customer, 'Rice 25kg', (string) $qty, $price, 'EXEMPT', '4100', $tags, $this->riceItem);
         $this->riceStock -= $qty;
         $this->collectLater($invoice, $customer, $date, $slow, 'collect_retail');
     }
@@ -445,30 +563,66 @@ final class HistoricalDataSeeder extends Seeder
             return;
         }
 
-        ['customer' => $customer, 'slow' => $slow] = $this->posClients[mt_rand(0, count($this->posClients) - 1)];
+        ['customer' => $customer, 'slow' => $slow, 'project' => $project] = $this->posClient($date);
         $price = $this->pesos(54_000, 57_000) + (int) round($this->yearsIn($date) * 1_000) * 100;
+        $tags = $this->tags('POS', mt_rand(1, 100) <= 60 ? 'QC' : 'HO', project: $project);
 
-        $invoice = $this->invoice($date, $customer, 'POS terminal — installed', (string) $qty, $price, 'VAT12', '4200', $this->posItem);
+        $invoice = $this->invoice($date, $customer, 'POS terminal — installed', (string) $qty, $price, 'VAT12', '4200', $tags, $this->posItem);
         $this->posStock -= $qty;
         $this->collectLater($invoice, $customer, $date, $slow, 'collect');
     }
 
     private function sellService(CarbonImmutable $date, float $g): void
     {
-        ['customer' => $customer, 'slow' => $slow] = $this->posClients[mt_rand(0, count($this->posClients) - 1)];
+        ['customer' => $customer, 'slow' => $slow, 'project' => $project] = $this->posClient($date);
         $description = ['POS support plan (quarterly)', 'On-site repair and servicing', 'Menu and inventory setup', 'Staff training'][mt_rand(0, 3)];
+        $tags = $this->tags('TECH', mt_rand(1, 100) <= 60 ? 'QC' : 'HO', project: $project);
 
-        $invoice = $this->invoice($date, $customer, $description, '1', $this->pesos(4_500, 18_000, $g), 'VAT12', '4300');
+        $invoice = $this->invoice($date, $customer, $description, '1', $this->pesos(4_500, 18_000, $g), 'VAT12', '4300', $tags);
         $this->collectLater($invoice, $customer, $date, $slow, 'collect');
     }
 
-    private function invoice(CarbonImmutable $date, Customer $customer, string $description, string $qty, int $unitPrice, string $tax, string $account, ?int $itemId = null): Invoice
+    /**
+     * A POS client for a sale. While a client project is running, its client
+     * gets a good share of the work, and those sales carry the project tag.
+     *
+     * @return array{customer: Customer, slow: bool, project: string|null}
+     */
+    private function posClient(CarbonImmutable $date): array
+    {
+        $running = array_values(array_filter($this->clientProjects,
+            fn (array $p): bool => $p['from'] <= $date->toDateString() && $date->toDateString() <= $p['to']));
+
+        $customerName = $running !== [] && mt_rand(1, 100) <= 45
+            ? $running[mt_rand(0, count($running) - 1)]['customer']
+            : null;
+
+        $clients = $customerName === null
+            ? $this->posClients
+            : array_values(array_filter($this->posClients, fn (array $c): bool => $c['customer']->name === $customerName));
+        $client = $clients[mt_rand(0, count($clients) - 1)];
+
+        $project = null;
+        foreach ($running as $p) {
+            if ($p['customer'] === $client['customer']->name) {
+                $project = $p['code'];
+            }
+        }
+
+        return [...$client, 'project' => $project];
+    }
+
+    /**
+     * @param  array{department_id: int|null, project_id: int|null, fund_id: int|null, branch_id: int|null}  $tags
+     */
+    private function invoice(CarbonImmutable $date, Customer $customer, string $description, string $qty, int $unitPrice, string $tax, string $account, array $tags, ?int $itemId = null): Invoice
     {
         return app(PostInvoice::class)->handle(InvoiceData::from([
             'company_id' => $this->company->id,
             'customer_id' => $customer->id,
             'invoice_date' => $date->toDateString(),
             'due_date' => $date->addDays($customer->terms_days)->toDateString(),
+            ...$tags,
             'lines' => [[
                 'description' => $description,
                 'qty' => $qty,
@@ -553,8 +707,8 @@ final class HistoricalDataSeeder extends Seeder
         $withholding = (int) round($gross * 0.06);
 
         $this->journal($date, 'Payroll — '.$date->format('F Y'), [
-            ['6300', $gross],
-            ['6310', $employer],
+            ...$this->splitByDepartment('6300', $gross),
+            ...$this->splitByDepartment('6310', $employer),
             ['2220', -$withholding],
             ['2230', -($employee + $employer)],
             ['1120', -($gross - $withholding - $employee)],
@@ -568,7 +722,28 @@ final class HistoricalDataSeeder extends Seeder
     {
         $amount = $this->monthlyPayroll($date);
 
-        $this->journal($date, '13th-month pay '.$date->year, [['6300', $amount], ['1120', -$amount]]);
+        $this->journal($date, '13th-month pay '.$date->year, [...$this->splitByDepartment('6300', $amount), ['1120', -$amount]]);
+    }
+
+    /**
+     * Debit lines splitting an amount across departments per PAYROLL_SPLIT; the
+     * last department takes the rounding.
+     *
+     * @return list<array{0: string, 1: int, 2: array{department_id: int|null, project_id: int|null, fund_id: int|null, branch_id: int|null}}>
+     */
+    private function splitByDepartment(string $account, int $amount): array
+    {
+        $lines = [];
+        $left = $amount;
+        $departments = array_keys(self::PAYROLL_SPLIT);
+
+        foreach (self::PAYROLL_SPLIT as $department => [$percent, $branch]) {
+            $share = $department === end($departments) ? $left : (int) round($amount * $percent / 100);
+            $left -= $share;
+            $lines[] = [$account, $share, $this->tags($department, $branch)];
+        }
+
+        return $lines;
     }
 
     private function monthlyPayroll(CarbonImmutable $date): int
@@ -768,7 +943,7 @@ final class HistoricalDataSeeder extends Seeder
     // --- Helpers -----------------------------------------------------------
 
     /**
-     * @param  list<array{0: string, 1: int}>  $lines  [account code, signed amount: + debit / − credit]
+     * @param  list<array{0: string, 1: int, 2?: array<string, int|null>}>  $lines  [account code, signed amount (+ debit / − credit), tags]
      */
     private function journal(CarbonImmutable $date, string $memo, array $lines): JournalEntry
     {
@@ -779,8 +954,47 @@ final class HistoricalDataSeeder extends Seeder
             'lines' => array_map(fn (array $line): array => [
                 'account_id' => $this->accounts[$line[0]],
                 $line[1] >= 0 ? 'debit' : 'credit' => abs($line[1]),
+                ...($line[2] ?? []),
             ], $lines),
         ]), $this->actor);
+    }
+
+    /**
+     * Dimension ids for a department, branch, fund (general by default) and
+     * optional project, by code.
+     *
+     * @return array{department_id: int|null, project_id: int|null, fund_id: int|null, branch_id: int|null}
+     */
+    private function tags(?string $department, ?string $branch, string $fund = 'GEN', ?string $project = null): array
+    {
+        return [
+            'department_id' => $department !== null ? $this->dims['department'][$department] : null,
+            'project_id' => $project !== null ? $this->dims['project'][$project] : null,
+            'fund_id' => $this->dims['fund'][$fund],
+            'branch_id' => $branch !== null ? $this->dims['branch'][$branch] : null,
+        ];
+    }
+
+    /**
+     * Create (or reuse) the company's dimension values; the listed codes are
+     * finished and marked inactive.
+     *
+     * @param  class-string<Model>  $model
+     * @param  array<string, string>  $names  code => name
+     * @param  list<string>  $finished
+     * @return array<string, int> code => id
+     */
+    private function dimension(string $model, array $names, array $finished = []): array
+    {
+        $ids = [];
+        foreach ($names as $code => $name) {
+            $ids[$code] = (int) $model::query()->firstOrCreate(
+                ['company_id' => $this->company->id, 'code' => $code],
+                ['name' => $name, 'is_active' => ! in_array($code, $finished, true), 'created_by' => $this->actor?->id],
+            )->getKey();
+        }
+
+        return $ids;
     }
 
     /** Credits minus debits on an account up to a date (centavos). */

@@ -27,7 +27,10 @@ class ViewJournalEntry extends ViewRecord
     protected function resolveRecord(int|string $key): Model
     {
         return parent::resolveRecord($key)
-            ->load(['lines.account', 'reversalOf', 'reversedBy', 'attachments.uploader']);
+            ->load([
+                'lines.account', 'lines.department', 'lines.project', 'lines.fund', 'lines.branch',
+                'reversalOf', 'reversedBy', 'attachments.uploader',
+            ]);
     }
 
     protected function getHeaderActions(): array
