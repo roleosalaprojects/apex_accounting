@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\JournalEntries\Tables;
 
+use App\Filament\Support\Peso;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 
@@ -19,7 +20,7 @@ class JournalEntriesTable
                 TextColumn::make('source_type')->label('Source')
                     ->formatStateUsing(fn (?string $state) => $state ? class_basename($state) : 'Manual')->badge(),
                 TextColumn::make('status')->badge(),
-                TextColumn::make('total_debits')->label('Amount')->money('PHP', divideBy: 100)->sortable(),
+                TextColumn::make('total_debits')->label('Amount')->formatStateUsing(fn (mixed $state): ?string => Peso::state($state))->alignEnd()->sortable(),
             ])
             ->defaultSort('entry_date', 'desc');
     }

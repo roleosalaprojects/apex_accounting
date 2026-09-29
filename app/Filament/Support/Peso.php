@@ -16,6 +16,16 @@ final class Peso
         return '₱'.number_format($minor / 100, 2);
     }
 
+    /** For table columns: a Money, or centavos as the database returns them; blank stays blank. */
+    public static function state(mixed $state): ?string
+    {
+        if (blank($state)) {
+            return null;
+        }
+
+        return self::format($state instanceof Money ? $state : (int) $state);
+    }
+
     /** Compact figure for dashboard tiles: ₱84,213 · ₱842K · ₱1.75M · ₱19.0M. */
     public static function compact(int $minor): string
     {

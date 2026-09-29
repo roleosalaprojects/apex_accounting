@@ -6,6 +6,7 @@ namespace App\Filament\Resources\CreditMemos\Tables;
 
 use App\Actions\Receivables\ApplyCreditMemo;
 use App\Enums\InvoiceStatus;
+use App\Filament\Support\Peso;
 use App\Models\CreditMemo;
 use App\Models\Invoice;
 use Filament\Actions\Action;
@@ -26,9 +27,9 @@ class CreditMemosTable
                 TextColumn::make('number')->searchable()->sortable(),
                 TextColumn::make('customer.name')->label('Customer')->searchable(),
                 TextColumn::make('memo_date')->date()->sortable(),
-                TextColumn::make('total')->money('PHP', divideBy: 100),
+                TextColumn::make('total')->formatStateUsing(fn (mixed $state): ?string => Peso::state($state))->alignEnd(),
                 TextColumn::make('applications_sum_amount')->sum('applications', 'amount')
-                    ->label('Applied')->money('PHP', divideBy: 100)->placeholder('—'),
+                    ->label('Applied')->formatStateUsing(fn (mixed $state): ?string => Peso::state($state))->alignEnd()->placeholder('—'),
                 TextColumn::make('status')->badge()
                     ->color(fn (string $state): string => match ($state) {
                         'applied' => 'success',

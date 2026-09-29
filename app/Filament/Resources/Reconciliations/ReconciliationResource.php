@@ -6,6 +6,7 @@ namespace App\Filament\Resources\Reconciliations;
 
 use App\Filament\Resources\Reconciliations\Pages\ListReconciliations;
 use App\Filament\Resources\Reconciliations\Pages\ManageReconciliation;
+use App\Filament\Support\Peso;
 use App\Models\Reconciliation;
 use BackedEnum;
 use Filament\Resources\Resource;
@@ -34,7 +35,7 @@ class ReconciliationResource extends Resource
             ->columns([
                 TextColumn::make('bankAccount.account.name')->label('Bank account'),
                 TextColumn::make('statement_date')->date()->sortable(),
-                TextColumn::make('statement_ending_balance')->label('Statement balance')->money('PHP', divideBy: 100),
+                TextColumn::make('statement_ending_balance')->label('Statement balance')->formatStateUsing(fn (mixed $state): ?string => Peso::state($state))->alignEnd(),
                 TextColumn::make('status')->badge()
                     ->color(fn (string $state): string => $state === 'completed' ? 'success' : 'warning'),
                 TextColumn::make('items_count')->counts('items')->label('Lines'),

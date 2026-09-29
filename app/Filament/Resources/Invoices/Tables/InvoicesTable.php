@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Resources\Invoices\Tables;
 
 use App\Enums\InvoiceStatus;
+use App\Filament\Support\Peso;
 use App\Models\Account;
 use App\Models\Invoice;
 use App\Services\Fx\RecordForeignSettlement;
@@ -30,10 +31,10 @@ class InvoicesTable
                 TextColumn::make('customer.name')->label('Customer')->searchable(),
                 TextColumn::make('invoice_date')->date()->sortable(),
                 TextColumn::make('status')->badge()->searchable(),
-                TextColumn::make('exempt_sales')->label('Exempt')->money('PHP', divideBy: 100)->sortable(),
-                TextColumn::make('vatable_sales')->label('VATable')->money('PHP', divideBy: 100)->sortable(),
-                TextColumn::make('vat_amount')->label('VAT')->money('PHP', divideBy: 100)->sortable(),
-                TextColumn::make('total')->money('PHP', divideBy: 100)->sortable(),
+                TextColumn::make('exempt_sales')->label('Exempt')->formatStateUsing(fn (mixed $state): ?string => Peso::state($state))->alignEnd()->sortable(),
+                TextColumn::make('vatable_sales')->label('VATable')->formatStateUsing(fn (mixed $state): ?string => Peso::state($state))->alignEnd()->sortable(),
+                TextColumn::make('vat_amount')->label('VAT')->formatStateUsing(fn (mixed $state): ?string => Peso::state($state))->alignEnd()->sortable(),
+                TextColumn::make('total')->formatStateUsing(fn (mixed $state): ?string => Peso::state($state))->alignEnd()->sortable(),
             ])
             ->recordActions([
                 Action::make('pdf')->label('PDF')->icon('heroicon-o-document-arrow-down')

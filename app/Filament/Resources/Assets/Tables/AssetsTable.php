@@ -8,6 +8,7 @@ use App\Actions\Assets\DisposeAsset;
 use App\Actions\Assets\PlaceAssetInService;
 use App\Enums\AccountSubtype;
 use App\Enums\AssetStatus;
+use App\Filament\Support\Peso;
 use App\Models\Account;
 use App\Models\Asset;
 use App\Models\User;
@@ -32,7 +33,7 @@ class AssetsTable
                 TextColumn::make('name')->searchable(),
                 TextColumn::make('category.name')->label('Category'),
                 TextColumn::make('acquisition_date')->date()->sortable(),
-                TextColumn::make('acquisition_cost')->label('Cost')->money('PHP', divideBy: 100),
+                TextColumn::make('acquisition_cost')->label('Cost')->formatStateUsing(fn (mixed $state): ?string => Peso::state($state))->alignEnd(),
                 TextColumn::make('useful_life_months')->label('Life (mo)'),
                 TextColumn::make('status')->badge(),
                 TextColumn::make('in_service_date')->date()->label('In service'),

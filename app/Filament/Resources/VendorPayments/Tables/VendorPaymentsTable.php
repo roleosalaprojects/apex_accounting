@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\VendorPayments\Tables;
 
+use App\Filament\Support\Peso;
 use App\Models\VendorPayment;
 use App\Services\Printing\Print2307;
 use Filament\Actions\Action;
@@ -20,9 +21,9 @@ class VendorPaymentsTable
                 TextColumn::make('voucher_no')->label('Voucher')->searchable(),
                 TextColumn::make('vendor.name')->label('Vendor')->searchable(),
                 TextColumn::make('payment_date')->date()->sortable(),
-                TextColumn::make('gross_applied')->label('Gross')->money('PHP', divideBy: 100),
-                TextColumn::make('ewt')->label('EWT')->money('PHP', divideBy: 100),
-                TextColumn::make('net_paid')->label('Net paid')->money('PHP', divideBy: 100),
+                TextColumn::make('gross_applied')->label('Gross')->formatStateUsing(fn (mixed $state): ?string => Peso::state($state))->alignEnd(),
+                TextColumn::make('ewt')->label('EWT')->formatStateUsing(fn (mixed $state): ?string => Peso::state($state))->alignEnd(),
+                TextColumn::make('net_paid')->label('Net paid')->formatStateUsing(fn (mixed $state): ?string => Peso::state($state))->alignEnd(),
             ])
             ->recordActions([
                 Action::make('form2307')

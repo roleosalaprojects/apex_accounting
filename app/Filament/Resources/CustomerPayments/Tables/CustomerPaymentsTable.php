@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\CustomerPayments\Tables;
 
+use App\Filament\Support\Peso;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 
@@ -17,8 +18,8 @@ class CustomerPaymentsTable
                 TextColumn::make('customer.name')->label('Customer')->searchable(),
                 TextColumn::make('payment_date')->date()->sortable(),
                 TextColumn::make('method')->badge(),
-                TextColumn::make('amount')->money('PHP', divideBy: 100)->sortable(),
-                TextColumn::make('ewt_withheld')->label('EWT')->money('PHP', divideBy: 100),
+                TextColumn::make('amount')->formatStateUsing(fn (mixed $state): ?string => Peso::state($state))->alignEnd()->sortable(),
+                TextColumn::make('ewt_withheld')->label('EWT')->formatStateUsing(fn (mixed $state): ?string => Peso::state($state))->alignEnd(),
             ])
             ->defaultSort('payment_date', 'desc');
     }
