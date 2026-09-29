@@ -9,11 +9,13 @@ if [ ! -f public/build/manifest.json ]; then
 fi
 
 if [ ! -s "$DB_DATABASE" ]; then
-    # First boot: fresh database with the demo company and a login per role.
+    # First boot: fresh database with the demo company, a login per role and
+    # three years of trading history.
     touch "$DB_DATABASE"
     php artisan migrate --force
     php artisan db:seed --class=DemoCompanySeeder --force
     php docker/demo-users.php
+    php artisan db:seed --class=HistoricalDataSeeder --force
 else
     php artisan migrate --force
 fi
