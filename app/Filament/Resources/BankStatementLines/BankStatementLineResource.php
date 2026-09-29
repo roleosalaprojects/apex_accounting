@@ -7,15 +7,10 @@ namespace App\Filament\Resources\BankStatementLines;
 use App\Filament\Resources\BankStatementLines\Pages\ListBankStatementLines;
 use App\Filament\Resources\BankStatementLines\Tables\BankStatementLinesTable;
 use App\Models\BankStatementLine;
-use App\Models\Company;
-use App\Models\User;
-use App\Support\Rbac\RbacRegistry;
 use BackedEnum;
-use Filament\Facades\Filament;
 use Filament\Resources\Resource;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
-use Illuminate\Support\Facades\Auth;
 use UnitEnum;
 
 class BankStatementLineResource extends Resource
@@ -31,20 +26,6 @@ class BankStatementLineResource extends Resource
     public static function table(Table $table): Table
     {
         return BankStatementLinesTable::configure($table);
-    }
-
-    public static function canViewAny(): bool
-    {
-        return self::userCanReconcile();
-    }
-
-    public static function userCanReconcile(): bool
-    {
-        $company = Filament::getTenant();
-        $user = Auth::user();
-
-        return $company instanceof Company && $user instanceof User
-            && $user->hasCompanyPermission($company->id, RbacRegistry::BANK_RECONCILE);
     }
 
     public static function getPages(): array

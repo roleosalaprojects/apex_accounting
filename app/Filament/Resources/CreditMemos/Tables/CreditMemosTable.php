@@ -40,6 +40,7 @@ class CreditMemosTable
                 Action::make('apply')
                     ->label('Apply to invoices')
                     ->icon('heroicon-o-arrow-down-on-square-stack')
+                    ->authorize('apply')
                     ->visible(fn (CreditMemo $record): bool => in_array($record->status, ['posted', 'applied'], true)
                         && $record->total->minor > (int) $record->applications()->sum('amount'))
                     ->schema(fn (CreditMemo $record): array => [

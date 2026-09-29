@@ -26,6 +26,7 @@ class ListReconciliations extends ListRecords
     {
         return [
             Action::make('start')->label('Start Reconciliation')->icon('heroicon-o-play')
+                ->authorize('start')
                 ->schema([
                     Select::make('bank_account_id')->label('Bank account')
                         ->options(fn () => BankAccount::query()->with('account')->get()

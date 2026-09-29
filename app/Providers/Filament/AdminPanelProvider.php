@@ -35,6 +35,9 @@ class AdminPanelProvider extends PanelProvider
             ->path('admin')
             ->viteTheme('resources/css/filament/admin/theme.css')
             ->login()
+            // Every resource model must have a policy (app/Policies); a missing
+            // one throws instead of silently allowing every company member.
+            ->strictAuthorization()
             ->tenant(Company::class)
             ->tenantRegistration(RegisterCompany::class)
             ->tenantProfile(EditCompanyProfile::class)

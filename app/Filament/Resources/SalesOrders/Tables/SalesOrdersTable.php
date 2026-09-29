@@ -48,6 +48,7 @@ class SalesOrdersTable
             ->recordActions([
                 Action::make('convert')
                     ->label('Convert to Invoice')->icon('heroicon-o-document-plus')->color('success')
+                    ->authorize('convertToInvoice')
                     ->visible(fn (SalesOrder $r): bool => ! in_array($r->status, ['invoiced', 'cancelled'], true))
                     ->requiresConfirmation()
                     ->action(function (SalesOrder $record) {

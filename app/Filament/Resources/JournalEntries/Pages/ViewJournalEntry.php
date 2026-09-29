@@ -9,12 +9,9 @@ use App\Actions\Ledger\ReverseJournalEntry;
 use App\Enums\JournalStatus;
 use App\Filament\Resources\JournalEntries\JournalEntryResource;
 use App\Filament\Support\AttachFilesAction;
-use App\Models\Company;
 use App\Models\JournalEntry;
 use App\Models\User;
-use App\Support\Rbac\RbacRegistry;
 use Filament\Actions\Action;
-use Filament\Facades\Filament;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;
@@ -38,7 +35,8 @@ class ViewJournalEntry extends ViewRecord
         return [
             AttachFilesAction::make(),
             Action::make('approvePost')->label('Approve & Post')->icon('heroicon-o-check-circle')->color('success')
-                ->visible(fn (): bool => $this->record->status === JournalStatus::Draft && self::actorCanApprove())
+                ->authorize('approveAndPost')
+                ->visible(fn (): bool => $this->record->status === JournalStatus::Draft)
                 ->requiresConfirmation()
                 ->action(function (): void {
                     /** @var JournalEntry $entry */
@@ -55,7 +53,8 @@ class ViewJournalEntry extends ViewRecord
                     }
                 }),
             Action::make('reverse')->label('Reverse')->icon('heroicon-o-arrow-uturn-left')->color('danger')
-                ->visible(fn (): bool => $this->record->status === JournalStatus::Posted && self::actorCanApprove())
+                ->authorize('reverse')
+                ->visible(fn (): bool => $this->record->status === JournalStatus::Posted)
                 ->requiresConfirmation()
                 ->schema([
                     Textarea::make('reason')->required()->minLength(5),
@@ -75,15 +74,5 @@ class ViewJournalEntry extends ViewRecord
                     }
                 }),
         ];
-    }
-
-    private static function actorCanApprove(): bool
-    {
-        /** @var Company|null $company */
-        $company = Filament::getTenant();
-        /** @var User|null $user */
-        $user = Auth::user();
-
-        return $company !== null && $user?->hasCompanyPermission($company->id, RbacRegistry::JOURNAL_APPROVE) === true;
     }
 }

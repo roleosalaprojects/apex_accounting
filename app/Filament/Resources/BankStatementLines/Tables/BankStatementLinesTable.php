@@ -50,6 +50,7 @@ class BankStatementLinesTable
             ->recordActions([
                 Action::make('automatch')
                     ->label('Auto-match')->icon('heroicon-o-link')->color('info')
+                    ->authorize('reconcile')
                     ->visible(fn (BankStatementLine $l): bool => $l->status === 'unmatched')
                     ->action(function (BankStatementLine $record): void {
                         $importer = app(BankStatementImporter::class);
@@ -64,6 +65,7 @@ class BankStatementLinesTable
                     }),
                 Action::make('post')
                     ->label('Post to ledger')->icon('heroicon-o-arrow-right-circle')->color('success')
+                    ->authorize('reconcile')
                     ->visible(fn (BankStatementLine $l): bool => $l->status !== 'matched')
                     ->schema([
                         Select::make('contra_account_id')->label('Contra account')
@@ -82,6 +84,7 @@ class BankStatementLinesTable
                 Action::make('ignore')
                     ->label(fn (BankStatementLine $l): string => $l->status === 'ignored' ? 'Un-ignore' : 'Ignore')
                     ->icon('heroicon-o-eye-slash')->color('gray')
+                    ->authorize('reconcile')
                     ->visible(fn (BankStatementLine $l): bool => $l->status !== 'matched')
                     ->action(fn (BankStatementLine $record) => $record->update([
                         'status' => $record->status === 'ignored' ? 'unmatched' : 'ignored',

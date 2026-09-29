@@ -95,3 +95,19 @@ it('keeps the membership pivot and the spatie assignment in step when a role cha
     expect($user->hasCompanyPermission($company->id, RbacRegistry::JOURNAL_POST))->toBeFalse()
         ->and($user->hasCompanyPermission($company->id, RbacRegistry::REPORTS_VIEW))->toBeTrue();
 });
+
+it('checks permissions on users loaded together in one query', function () {
+    // Strict mode forbids lazy loading on models hydrated in a batch (e.g. an
+    // eager-loaded relation), so the check must load what it needs itself.
+    $company = makeCompany();
+    $ids = [
+        makeUserWithRole($company, CompanyRole::Accountant)->id,
+        makeUserWithRole($company, CompanyRole::Viewer)->id,
+    ];
+
+    [$accountant, $viewer] = User::query()->whereKey($ids)->orderBy('id')->get()->all();
+
+    expect($accountant->hasCompanyPermission($company->id, RbacRegistry::JOURNAL_POST))->toBeTrue()
+        ->and($viewer->hasCompanyPermission($company->id, RbacRegistry::JOURNAL_POST))->toBeFalse()
+        ->and($viewer->hasCompanyPermission($company->id, RbacRegistry::REPORTS_VIEW))->toBeTrue();
+});

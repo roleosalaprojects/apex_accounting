@@ -7,16 +7,11 @@ namespace App\Filament\Resources\PosZReadings;
 use App\Enums\PosZReadingStatus;
 use App\Filament\Resources\PosZReadings\Pages\ListPosZReadings;
 use App\Filament\Resources\PosZReadings\Tables\PosZReadingsTable;
-use App\Models\Company;
 use App\Models\PosZReading;
-use App\Models\User;
-use App\Support\Rbac\RbacRegistry;
 use BackedEnum;
-use Filament\Facades\Filament;
 use Filament\Resources\Resource;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
-use Illuminate\Support\Facades\Auth;
 use UnitEnum;
 
 class PosZReadingResource extends Resource
@@ -32,20 +27,6 @@ class PosZReadingResource extends Resource
     public static function table(Table $table): Table
     {
         return PosZReadingsTable::configure($table);
-    }
-
-    public static function canViewAny(): bool
-    {
-        return self::userCanImport();
-    }
-
-    public static function userCanImport(): bool
-    {
-        $company = Filament::getTenant();
-        $user = Auth::user();
-
-        return $company instanceof Company && $user instanceof User
-            && $user->hasCompanyPermission($company->id, RbacRegistry::JOURNAL_CREATE);
     }
 
     public static function getNavigationBadge(): ?string

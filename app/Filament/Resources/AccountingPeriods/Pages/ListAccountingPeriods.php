@@ -25,7 +25,7 @@ class ListAccountingPeriods extends ListRecords
     {
         return [
             Action::make('openFiscalYear')->label('Open Fiscal Year')->icon('heroicon-o-calendar')
-                ->visible(fn (): bool => AccountingPeriodResource::userCanManagePeriods())
+                ->authorize('openFiscalYear')
                 ->schema([
                     TextInput::make('fiscal_year')->numeric()->default(now()->year)->required(),
                 ])
@@ -44,7 +44,7 @@ class ListAccountingPeriods extends ListRecords
                     }
                 }),
             Action::make('closeFiscalYear')->label('Close Fiscal Year')->icon('heroicon-o-archive-box')->color('danger')
-                ->visible(fn (): bool => AccountingPeriodResource::userCanManagePeriods())
+                ->authorize('closeFiscalYear')
                 ->requiresConfirmation()
                 ->modalDescription('Posts the year-end closing entry (nominal accounts → Retained Earnings) and locks every period of the year. Locked periods never reopen.')
                 ->schema([

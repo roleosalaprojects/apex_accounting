@@ -26,6 +26,7 @@ class ListAssets extends ListRecords
     {
         return [
             Action::make('runDepreciation')->label('Run Depreciation')->icon('heroicon-o-calculator')
+                ->authorize('runDepreciation')
                 ->schema([
                     Select::make('period_id')->label('Period')
                         ->options(fn () => AccountingPeriod::query()

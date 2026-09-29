@@ -5,11 +5,14 @@ declare(strict_types=1);
 namespace App\Filament\Pages\Reports;
 
 use App\Models\Company;
+use App\Models\User;
 use App\Services\Printing\ReportExporter;
+use App\Support\Rbac\RbacRegistry;
 use Filament\Actions\Action;
 use Filament\Facades\Filament;
 use Filament\Pages\Page;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use UnitEnum;
 
@@ -28,6 +31,15 @@ abstract class ReportPage extends Page
     public ?string $asOf = null;
 
     public ?string $entity = null;
+
+    public static function canAccess(): bool
+    {
+        $company = Filament::getTenant();
+        $user = Auth::user();
+
+        return $company instanceof Company && $user instanceof User
+            && $user->hasCompanyPermission($company->id, RbacRegistry::REPORTS_VIEW);
+    }
 
     public function mount(): void
     {

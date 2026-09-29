@@ -39,6 +39,7 @@ class AssetsTable
             ])
             ->recordActions([
                 Action::make('placeInService')->label('Place in service')->icon('heroicon-o-play')
+                    ->authorize('placeInService')
                     ->visible(fn (Asset $record): bool => $record->status === AssetStatus::Draft)
                     ->schema([DatePicker::make('in_service_date')->default(now())->required()])
                     ->action(function (Asset $record, array $data): void {
@@ -50,6 +51,7 @@ class AssetsTable
                         }
                     }),
                 Action::make('dispose')->label('Dispose')->icon('heroicon-o-trash')->color('danger')
+                    ->authorize('dispose')
                     ->visible(fn (Asset $record): bool => in_array($record->status, [AssetStatus::InService, AssetStatus::FullyDepreciated], true))
                     ->schema([
                         DatePicker::make('date')->default(now())->required(),

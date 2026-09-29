@@ -42,7 +42,8 @@ class RecurringTemplateResource extends Resource
             TextInput::make('day_of_month')->numeric()->integer()->default(1)->minValue(1)->maxValue(31)->required(),
             DatePicker::make('starts_on')->default(now())->required(),
             DatePicker::make('ends_on')->label('Ends on (optional)'),
-            Toggle::make('auto_post')->label('Auto-post (otherwise drafts for approval)')->default(false),
+            Toggle::make('auto_post')->label('Auto-post (otherwise drafts for approval)')->default(false)
+                ->helperText('Runs post as whoever last saved this template, and only if that person may post.'),
             Toggle::make('is_active')->default(true),
             Textarea::make('payload')->label('Payload (JSON)')
                 ->rows(8)->columnSpanFull()
@@ -61,6 +62,7 @@ class RecurringTemplateResource extends Resource
                 TextColumn::make('schedule')->badge(),
                 TextColumn::make('next_run_on')->date()->sortable(),
                 IconColumn::make('auto_post')->boolean(),
+                TextColumn::make('updatedBy.name')->label('Posts as')->placeholder('— (re-save to post)'),
                 IconColumn::make('is_active')->boolean(),
                 TextColumn::make('runs_count')->counts('runs')->label('Runs'),
             ])

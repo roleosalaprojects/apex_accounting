@@ -7,8 +7,6 @@ namespace App\Filament\Resources\LoginEvents;
 use App\Filament\Resources\LoginEvents\Pages\ListLoginEvents;
 use App\Models\Company;
 use App\Models\LoginEvent;
-use App\Models\User;
-use App\Support\Rbac\RbacRegistry;
 use BackedEnum;
 use Filament\Facades\Filament;
 use Filament\Resources\Resource;
@@ -16,7 +14,6 @@ use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Facades\Auth;
 use UnitEnum;
 
 /**
@@ -34,21 +31,6 @@ class LoginEventResource extends Resource
     protected static ?string $navigationLabel = 'Login Events';
 
     protected static bool $isScopedToTenant = false;
-
-    public static function canViewAny(): bool
-    {
-        /** @var Company|null $company */
-        $company = Filament::getTenant();
-        /** @var User|null $user */
-        $user = Auth::user();
-
-        return $company !== null && $user?->hasCompanyPermission($company->id, RbacRegistry::AUDIT_VIEW) === true;
-    }
-
-    public static function canCreate(): bool
-    {
-        return false;
-    }
 
     public static function getEloquentQuery(): Builder
     {

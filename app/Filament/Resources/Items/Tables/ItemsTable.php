@@ -75,6 +75,7 @@ class ItemsTable
                 Action::make('adjust')
                     ->label('Adjust')
                     ->icon('heroicon-o-adjustments-horizontal')
+                    ->authorize('adjust')
                     ->visible(fn (Item $record): bool => $record->type === ItemType::Inventory)
                     ->schema([
                         DatePicker::make('date')->default(now())->required(),

@@ -9,6 +9,7 @@ use App\Data\Ledger\JournalLineData;
 use App\Data\Ledger\OpeningBalancesData;
 use App\Models\Account;
 use App\Models\JournalEntry;
+use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 use Spatie\LaravelData\DataCollection;
@@ -26,9 +27,9 @@ final class SetupOpeningBalances
 {
     public function __construct(private readonly PostJournalEntry $post) {}
 
-    public function handle(OpeningBalancesData $data): JournalEntry
+    public function handle(OpeningBalancesData $data, ?User $actor = null): JournalEntry
     {
-        return DB::transaction(function () use ($data): JournalEntry {
+        return DB::transaction(function () use ($data, $actor): JournalEntry {
             $obe = Account::query()
                 ->withoutGlobalScopes()
                 ->where('company_id', $data->company_id)
@@ -66,7 +67,7 @@ final class SetupOpeningBalances
                 approved_by: $data->created_by,
             );
 
-            return $this->post->handle($entryData);
+            return $this->post->handle($entryData, $actor);
         });
     }
 }

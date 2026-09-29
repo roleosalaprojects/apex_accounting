@@ -6,6 +6,7 @@ namespace App\Filament\Resources\RecurringTemplates\Pages;
 
 use App\Filament\Resources\RecurringTemplates\RecurringTemplateResource;
 use Filament\Resources\Pages\EditRecord;
+use Illuminate\Support\Facades\Auth;
 
 class EditRecurringTemplate extends EditRecord
 {
@@ -33,6 +34,8 @@ class EditRecurringTemplate extends EditRecord
         $data['payload'] = filled($data['payload'] ?? null)
             ? json_decode((string) $data['payload'], true)
             : null;
+        // Runs post under the authority of whoever last saved the template.
+        $data['updated_by'] = Auth::id();
 
         return $data;
     }

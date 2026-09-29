@@ -35,6 +35,7 @@ class ListBankAccounts extends ListRecords
     {
         return [
             Action::make('deposit')->label('Record Deposit')->icon('heroicon-o-arrow-down-tray')
+                ->authorize('recordTransaction')
                 ->schema([
                     Select::make('bank_account_id')->label('Deposit to')->options(self::cashBankOptions())->required(),
                     Select::make('source_account_id')->label('From (source)')->options(self::cashBankOptions())->required(),
@@ -53,6 +54,7 @@ class ListBankAccounts extends ListRecords
                 ]), $u), 'Deposit recorded')),
 
             Action::make('transfer')->label('Record Transfer')->icon('heroicon-o-arrows-right-left')
+                ->authorize('recordTransaction')
                 ->schema([
                     Select::make('from_account_id')->label('From')->options(self::cashBankOptions())->required(),
                     Select::make('to_account_id')->label('To')->options(self::cashBankOptions())->required()->different('from_account_id'),
@@ -71,6 +73,7 @@ class ListBankAccounts extends ListRecords
                 ]), $u), 'Transfer recorded')),
 
             Action::make('charge')->label('Record Bank Charge')->icon('heroicon-o-receipt-percent')
+                ->authorize('recordTransaction')
                 ->schema([
                     Select::make('bank_account_id')->label('Bank account')->options(self::cashBankOptions())->required(),
                     Select::make('expense_account_id')->label('Expense account')->options(self::expenseOptions())->required(),

@@ -24,6 +24,7 @@ class ListBankStatementLines extends ListRecords
         return [
             Action::make('import')
                 ->label('Import CSV')->icon('heroicon-o-arrow-up-tray')
+                ->authorize('import')
                 ->schema([
                     Select::make('bank_account_id')->label('Bank account')
                         ->options(fn (): array => BankAccount::query()->get()

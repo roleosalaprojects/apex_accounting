@@ -10,6 +10,7 @@ use App\Models\Concerns\BelongsToCompany;
 use Database\Factories\RecurringTemplateFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 
@@ -26,6 +27,9 @@ use Illuminate\Support\Carbon;
  * @property Carbon $next_run_on
  * @property bool $auto_post
  * @property bool $is_active
+ * @property int|null $created_by
+ * @property int|null $updated_by
+ * @property-read User|null $updatedBy
  */
 final class RecurringTemplate extends Model
 {
@@ -57,5 +61,16 @@ final class RecurringTemplate extends Model
     public function runs(): HasMany
     {
         return $this->hasMany(RecurringRun::class);
+    }
+
+    /**
+     * Whoever last saved the template. Its runs post under this user's
+     * authority, so an edit by someone without posting rights stops it posting.
+     *
+     * @return BelongsTo<User, $this>
+     */
+    public function updatedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'updated_by');
     }
 }

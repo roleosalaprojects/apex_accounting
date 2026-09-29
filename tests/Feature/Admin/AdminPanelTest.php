@@ -16,6 +16,10 @@ it('serves the admin login page', function () {
 });
 
 it('registers resources; journal entries, invoices and bills are all creatable (posted docs stay immutable)', function () {
+    $company = makeCompany();
+    $this->actingAs(makeUserWithRole($company, CompanyRole::Owner));
+    Filament::setTenant($company);
+
     $resources = Filament::getPanel('admin')->getResources();
 
     expect(count($resources))->toBeGreaterThanOrEqual(11)

@@ -48,6 +48,7 @@ class PurchaseOrdersTable
             ->recordActions([
                 Action::make('convert')
                     ->label('Convert to Bill')->icon('heroicon-o-document-plus')->color('success')
+                    ->authorize('convertToBill')
                     ->visible(fn (PurchaseOrder $r): bool => ! in_array($r->status, ['billed', 'cancelled'], true))
                     ->requiresConfirmation()
                     ->action(function (PurchaseOrder $record) {

@@ -10,7 +10,6 @@ use App\Filament\Resources\Accounts\AccountResource;
 use App\Models\Account;
 use App\Models\Company;
 use App\Models\User;
-use App\Support\Rbac\RbacRegistry;
 use Filament\Actions\Action;
 use Filament\Actions\CreateAction;
 use Filament\Facades\Filament;
@@ -33,14 +32,7 @@ class ListAccounts extends ListRecords
             Action::make('openingBalances')
                 ->label('Opening Balances')
                 ->icon('heroicon-o-scale')
-                ->visible(function (): bool {
-                    /** @var Company|null $company */
-                    $company = Filament::getTenant();
-                    /** @var User|null $user */
-                    $user = Auth::user();
-
-                    return $company !== null && $user?->hasCompanyPermission($company->id, RbacRegistry::ACCOUNT_MANAGE) === true;
-                })
+                ->authorize('setupOpeningBalances')
                 ->modalDescription('Posts one balanced opening entry dated the day you enter, offset to 3950 Opening Balance Equity. Enter each account\'s balance as a debit or a credit.')
                 ->schema([
                     DatePicker::make('opening_date')->required()
@@ -80,7 +72,7 @@ class ListAccounts extends ListRecords
                             'opening_date' => $data['opening_date'],
                             'lines' => $lines,
                             'created_by' => $user->id,
-                        ]));
+                        ]), $user);
                         Notification::make()->success()
                             ->title('Opening balances posted')
                             ->body("Entry {$entry->number} posted.")

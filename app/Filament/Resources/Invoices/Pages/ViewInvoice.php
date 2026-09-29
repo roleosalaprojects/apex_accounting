@@ -48,6 +48,7 @@ class ViewInvoice extends ViewRecord
                     );
                 }),
             Action::make('void')->label('Void')->icon('heroicon-o-no-symbol')->color('danger')
+                ->authorize('void')
                 ->visible(fn (): bool => in_array($this->record->status, [InvoiceStatus::Posted, InvoiceStatus::PartiallyPaid], true))
                 ->requiresConfirmation()
                 ->schema([Textarea::make('reason')->required()->minLength(5)])

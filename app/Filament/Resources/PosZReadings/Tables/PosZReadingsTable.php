@@ -57,6 +57,7 @@ class PosZReadingsTable
             ->recordActions([
                 Action::make('import')
                     ->label('Import as draft')->icon('heroicon-o-arrow-right-circle')->color('success')
+                    ->authorize('import')
                     ->requiresConfirmation()
                     ->modalDescription('Create a draft journal entry from this Z-reading. Review and post it from Journal Entries.')
                     ->visible(fn (PosZReading $r): bool => $r->isPending())
@@ -73,10 +74,12 @@ class PosZReadingsTable
                     }),
                 Action::make('dismiss')
                     ->label('Dismiss')->icon('heroicon-o-eye-slash')->color('gray')
+                    ->authorize('import')
                     ->visible(fn (PosZReading $r): bool => $r->isPending())
                     ->action(fn (PosZReading $record) => $record->update(['status' => PosZReadingStatus::Dismissed])),
                 Action::make('restore')
                     ->label('Restore')->icon('heroicon-o-arrow-uturn-left')->color('warning')
+                    ->authorize('import')
                     ->visible(fn (PosZReading $r): bool => $r->status === PosZReadingStatus::Dismissed)
                     ->action(fn (PosZReading $record) => $record->update(['status' => PosZReadingStatus::Pending])),
             ])
@@ -84,6 +87,7 @@ class PosZReadingsTable
                 BulkActionGroup::make([
                     BulkAction::make('importSelected')
                         ->label('Import selected as drafts')->icon('heroicon-o-arrow-right-circle')->color('success')
+                        ->authorize('import')
                         ->requiresConfirmation()
                         ->action(function (Collection $records): void {
                             $importer = app(ImportPosZReading::class);

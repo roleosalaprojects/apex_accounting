@@ -6,21 +6,16 @@ namespace App\Filament\Resources\AuditLogs;
 
 use App\Filament\Resources\AuditLogs\Pages\ListAuditLogs;
 use App\Models\AuditLog;
-use App\Models\Company;
-use App\Models\User;
-use App\Support\Rbac\RbacRegistry;
 use BackedEnum;
-use Filament\Facades\Filament;
 use Filament\Resources\Resource;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
-use Illuminate\Support\Facades\Auth;
 use UnitEnum;
 
 /**
  * Read-only audit trail viewer (§13). Entries are written by AuditLogger from
- * the Actions layer and are never editable from the UI.
+ * the Actions layer and are never editable from the UI (AuditLogPolicy).
  */
 class AuditLogResource extends Resource
 {
@@ -31,21 +26,6 @@ class AuditLogResource extends Resource
     protected static string|UnitEnum|null $navigationGroup = 'Settings';
 
     protected static ?string $navigationLabel = 'Audit Log';
-
-    public static function canViewAny(): bool
-    {
-        /** @var Company|null $company */
-        $company = Filament::getTenant();
-        /** @var User|null $user */
-        $user = Auth::user();
-
-        return $company !== null && $user?->hasCompanyPermission($company->id, RbacRegistry::AUDIT_VIEW) === true;
-    }
-
-    public static function canCreate(): bool
-    {
-        return false;
-    }
 
     public static function table(Table $table): Table
     {

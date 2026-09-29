@@ -33,6 +33,15 @@ class User extends Authenticatable implements FilamentUser, HasTenants, OAuthent
     use HasApiTokens, HasFactory, HasRoles, Notifiable;
 
     /**
+     * Permission names held per company, memoized on this instance: policies
+     * ask the same questions for every navigation item and table row of a
+     * request. syncCompanyRole() / forgetCompanyRoles() reset it.
+     *
+     * @var array<int, array<string, true>>
+     */
+    private array $companyPermissionCache = [];
+
+    /**
      * @return array<string, string>
      */
     protected function casts(): array
@@ -78,14 +87,35 @@ class User extends Authenticatable implements FilamentUser, HasTenants, OAuthent
      */
     public function hasCompanyPermission(int $companyId, string $permission): bool
     {
-        if (! $this->companies()->whereKey($companyId)->exists()) {
-            return false;
+        return isset($this->companyPermissions($companyId)[$permission]);
+    }
+
+    /**
+     * @return array<string, true>
+     */
+    private function companyPermissions(int $companyId): array
+    {
+        if (isset($this->companyPermissionCache[$companyId])) {
+            return $this->companyPermissionCache[$companyId];
         }
 
-        app(PermissionRegistrar::class)->setPermissionsTeamId($companyId);
-        $this->unsetRelation('roles')->unsetRelation('permissions');
+        if (! $this->companies()->whereKey($companyId)->exists()) {
+            return $this->companyPermissionCache[$companyId] = [];
+        }
 
-        return $this->hasPermissionTo($permission, RbacRegistry::GUARD);
+        // Roles and direct permissions are team-scoped, so reload them for this
+        // company. Load explicitly: getAllPermissions() reads the relation as a
+        // property, which strict mode rejects on users hydrated in a batch.
+        app(PermissionRegistrar::class)->setPermissionsTeamId($companyId);
+        $this->unsetRelation('roles')->unsetRelation('permissions')
+            ->load(['permissions', 'roles.permissions']);
+
+        $names = $this->getAllPermissions()
+            ->where('guard_name', RbacRegistry::GUARD)
+            ->pluck('name')
+            ->all();
+
+        return $this->companyPermissionCache[$companyId] = array_fill_keys($names, true);
     }
 
     /**
@@ -98,6 +128,7 @@ class User extends Authenticatable implements FilamentUser, HasTenants, OAuthent
         app(PermissionRegistrar::class)->setPermissionsTeamId($companyId);
         $this->unsetRelation('roles');
         $this->syncRoles([Role::findByName($role->value, RbacRegistry::GUARD)]);
+        $this->companyPermissionCache = [];
     }
 
     /**
@@ -109,6 +140,7 @@ class User extends Authenticatable implements FilamentUser, HasTenants, OAuthent
         app(PermissionRegistrar::class)->setPermissionsTeamId($companyId);
         $this->unsetRelation('roles');
         $this->syncRoles([]);
+        $this->companyPermissionCache = [];
     }
 
     // --- Filament panel access + multi-company tenancy (§13) ---

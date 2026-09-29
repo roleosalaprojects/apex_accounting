@@ -62,6 +62,7 @@ class ManageReconciliation extends Page
     {
         return [
             Action::make('complete')->label('Complete Reconciliation')->icon('heroicon-o-check-badge')->color('success')
+                ->authorize('complete')
                 ->visible(fn (): bool => $this->record->status !== 'completed')
                 ->requiresConfirmation()
                 ->action(function (): void {

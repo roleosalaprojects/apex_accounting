@@ -6,6 +6,7 @@ namespace App\Filament\Resources\RecurringTemplates\Pages;
 
 use App\Filament\Resources\RecurringTemplates\RecurringTemplateResource;
 use Filament\Resources\Pages\CreateRecord;
+use Illuminate\Support\Facades\Auth;
 
 class CreateRecurringTemplate extends CreateRecord
 {
@@ -21,6 +22,8 @@ class CreateRecurringTemplate extends CreateRecord
             ? json_decode($data['payload'], true)
             : null;
         $data['next_run_on'] = $data['starts_on'];
+        // Runs post under the authority of whoever last saved the template.
+        $data['created_by'] = $data['updated_by'] = Auth::id();
 
         return $data;
     }

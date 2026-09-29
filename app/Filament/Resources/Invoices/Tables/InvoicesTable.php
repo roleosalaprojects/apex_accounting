@@ -45,6 +45,7 @@ class InvoicesTable
                         ($record->number ?? 'invoice').'.pdf',
                     )),
                 Action::make('settleFx')->label('Settle (FX)')->icon('heroicon-o-currency-dollar')->color('success')
+                    ->authorize('settleForeignCurrency')
                     ->visible(fn (Invoice $record): bool => $record->isForeignCurrency() && $record->outstanding() > 0)
                     ->schema([
                         TextInput::make('settlement_rate')->label('Settlement rate (PHP per 1 unit)')

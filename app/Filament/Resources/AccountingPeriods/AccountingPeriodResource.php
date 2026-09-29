@@ -9,23 +9,18 @@ use App\Actions\Ledger\ReopenPeriod;
 use App\Enums\PeriodStatus;
 use App\Filament\Resources\AccountingPeriods\Pages\ListAccountingPeriods;
 use App\Models\AccountingPeriod;
-use App\Models\Company;
-use App\Models\User;
-use App\Support\Rbac\RbacRegistry;
 use BackedEnum;
 use Filament\Actions\Action;
-use Filament\Facades\Filament;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
-use Illuminate\Support\Facades\Auth;
 use Throwable;
 
 /**
  * Period close/reopen (§4.1). Closing recomputes the balance chain; a locked
- * (year-end) period never reopens. Gated to roles that can approve.
+ * (year-end) period never reopens. Gated by AccountingPeriodPolicy.
  */
 class AccountingPeriodResource extends Resource
 {
@@ -36,11 +31,6 @@ class AccountingPeriodResource extends Resource
     protected static string|\UnitEnum|null $navigationGroup = 'Ledger';
 
     protected static ?string $navigationLabel = 'Periods';
-
-    public static function canCreate(): bool
-    {
-        return false;
-    }
 
     public static function table(Table $table): Table
     {
@@ -60,7 +50,8 @@ class AccountingPeriodResource extends Resource
             ])
             ->recordActions([
                 Action::make('close')->label('Close')->icon('heroicon-o-lock-closed')->color('warning')
-                    ->visible(fn (AccountingPeriod $record): bool => $record->status === PeriodStatus::Open && self::userCanManagePeriods())
+                    ->authorize('close')
+                    ->visible(fn (AccountingPeriod $record): bool => $record->status === PeriodStatus::Open)
                     ->requiresConfirmation()
                     ->action(function (AccountingPeriod $record): void {
                         try {
@@ -71,7 +62,8 @@ class AccountingPeriodResource extends Resource
                         }
                     }),
                 Action::make('reopen')->label('Reopen')->icon('heroicon-o-lock-open')
-                    ->visible(fn (AccountingPeriod $record): bool => $record->status === PeriodStatus::Closed && self::userCanManagePeriods())
+                    ->authorize('reopen')
+                    ->visible(fn (AccountingPeriod $record): bool => $record->status === PeriodStatus::Closed)
                     ->requiresConfirmation()
                     ->action(function (AccountingPeriod $record): void {
                         try {
@@ -83,16 +75,6 @@ class AccountingPeriodResource extends Resource
                     }),
             ])
             ->defaultSort('starts_on');
-    }
-
-    public static function userCanManagePeriods(): bool
-    {
-        /** @var Company|null $company */
-        $company = Filament::getTenant();
-        /** @var User|null $user */
-        $user = Auth::user();
-
-        return $company !== null && $user?->hasCompanyPermission($company->id, RbacRegistry::PERIOD_MANAGE) === true;
     }
 
     public static function getPages(): array
