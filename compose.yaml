@@ -1,0 +1,25 @@
+# Local development: `docker compose up --build`, then open
+# http://localhost:8080/admin (logins are printed on first boot, e.g.
+# owner@apex.test / password).
+#
+# The working copy is bind-mounted, so code changes show up on refresh. The
+# app gets its own SQLite database in the `app-data` volume, seeded with the
+# demo company; database/database.sqlite on the host is untouched. Reset it
+# with `docker compose down -v`.
+services:
+  app:
+    build: ./docker
+    ports:
+      - "8080:8000"
+    volumes:
+      - .:/var/www/html
+      - app-data:/data
+    environment:
+      APP_URL: http://localhost:8080
+      DB_CONNECTION: sqlite
+      DB_DATABASE: /data/database.sqlite
+      PHP_CLI_SERVER_WORKERS: 4
+    command: sh docker/start.sh
+
+volumes:
+  app-data:
