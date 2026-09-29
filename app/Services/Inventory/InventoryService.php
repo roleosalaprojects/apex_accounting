@@ -15,7 +15,11 @@ use App\Services\Tax\VatMath;
  * ten-thousandths; the average cost is stored as centavos × 10000. All maths
  * are integer (no floats in money paths, §16.3).
  *
- *   inventory value (centavos) = qty_units × avg_cost_x10000 / 1e8
+ * Each item also carries the exact value of its stock, which moves by exactly
+ * what is posted to its inventory account: a receipt adds its cost, an issue
+ * removes the cost of sales it posts, and the last unit out takes whatever
+ * value is left. The stock subledger therefore equals the ledger to the
+ * centavo, however awkward the averages.
  */
 final class InventoryService
 {
@@ -25,16 +29,15 @@ final class InventoryService
     public function __construct(private readonly VatMath $vat) {}
 
     /**
-     * Receive stock: recompute the weighted average.
-     *   new_avg = (old_qty × old_avg + recv_qty × recv_cost) / (old_qty + recv_qty)
+     * Receive stock: add its cost to the value and recompute the average.
+     *   new_avg = (old_value + recv_cost) / (old_qty + recv_qty)
      */
     public function receive(Item $item, int $recvQtyUnits, int $recvTotalCost): ItemValuation
     {
         $valuation = $this->valuationFor($item);
 
-        $oldValue = $this->valueOf($valuation->qty_units, $valuation->avg_cost_x10000);
         $newQty = $valuation->qty_units + $recvQtyUnits;
-        $newValue = $oldValue + $recvTotalCost;
+        $newValue = $valuation->value + $recvTotalCost;
 
         $newAvg = $newQty > 0
             ? $this->vat->roundDiv($newValue * self::VALUE_DIVISOR, $newQty)
@@ -43,6 +46,7 @@ final class InventoryService
         $valuation->forceFill([
             'qty_units' => $newQty,
             'avg_cost_x10000' => $newAvg,
+            'value' => $newValue,
         ])->save();
 
         return $valuation;
@@ -61,9 +65,16 @@ final class InventoryService
             throw NegativeInventoryException::make("item {$item->sku}");
         }
 
-        $cogs = $this->valueOf($issueQtyUnits, $valuation->avg_cost_x10000);
+        // Issuing the last unit takes whatever value is left, so rounding at the
+        // average never strands centavos in the inventory account.
+        $cogs = $newQty === 0
+            ? $valuation->value
+            : $this->valueOf($issueQtyUnits, $valuation->avg_cost_x10000);
 
-        $valuation->forceFill(['qty_units' => $newQty])->save();
+        $valuation->forceFill([
+            'qty_units' => $newQty,
+            'value' => $valuation->value - $cogs,
+        ])->save();
 
         return $cogs;
     }
@@ -85,9 +96,7 @@ final class InventoryService
 
     public function inventoryValue(Item $item): int
     {
-        $valuation = $this->valuationFor($item);
-
-        return $this->valueOf($valuation->qty_units, $valuation->avg_cost_x10000);
+        return $this->valuationFor($item)->value;
     }
 
     /**
@@ -104,10 +113,11 @@ final class InventoryService
             ->where('item_id', $item->id)
             ->first();
 
-        $qty = $valuation->qty_units ?? 0;
-        $avg = $valuation->avg_cost_x10000 ?? 0;
-
-        return ['qty_units' => $qty, 'avg_cost_x10000' => $avg, 'value' => $this->valueOf($qty, $avg)];
+        return [
+            'qty_units' => $valuation->qty_units ?? 0,
+            'avg_cost_x10000' => $valuation->avg_cost_x10000 ?? 0,
+            'value' => $valuation->value ?? 0,
+        ];
     }
 
     private function valueOf(int $qtyUnits, int $avgX10000): int
@@ -123,7 +133,7 @@ final class InventoryService
     {
         return ItemValuation::query()->firstOrCreate(
             ['company_id' => $item->company_id, 'item_id' => $item->id],
-            ['qty_units' => 0, 'avg_cost_x10000' => 0],
+            ['qty_units' => 0, 'avg_cost_x10000' => 0, 'value' => 0],
         );
     }
 }

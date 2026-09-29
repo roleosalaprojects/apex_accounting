@@ -6,6 +6,7 @@ namespace App\Console\Commands;
 
 use App\Models\Company;
 use App\Models\PeriodBalance;
+use App\Services\Inventory\StockLedgerCheck;
 use App\Services\Ledger\LedgerBalanceCalculator;
 use Illuminate\Console\Command;
 
@@ -18,9 +19,9 @@ final class VerifyLedger extends Command
 {
     protected $signature = 'ledger:verify {company? : Company id (defaults to all)}';
 
-    protected $description = 'Recompute balances from journal_lines and assert they match period_balances.';
+    protected $description = 'Recompute balances from journal_lines and assert they match period_balances, and that stock ties to its inventory accounts.';
 
-    public function handle(LedgerBalanceCalculator $calculator): int
+    public function handle(LedgerBalanceCalculator $calculator, StockLedgerCheck $stock): int
     {
         $companyArg = $this->argument('company');
 
@@ -38,10 +39,11 @@ final class VerifyLedger extends Command
 
         foreach ($companies as $company) {
             $ok = $this->verifyCompany($company, $calculator) && $ok;
+            $ok = $this->verifyStock($company, $stock) && $ok;
         }
 
         if ($ok) {
-            $this->info('ledger:verify passed — period_balances match journal_lines and the trial balance ties out.');
+            $this->info('ledger:verify passed — period_balances match journal_lines, the trial balance ties out and stock equals its inventory accounts.');
 
             return self::SUCCESS;
         }
@@ -105,6 +107,26 @@ final class VerifyLedger extends Command
         }
         if ($tbSigned !== 0) {
             $this->error("[{$company->name}] trial balance does not tie out (signed sum {$tbSigned}).");
+            $ok = false;
+        }
+
+        return $ok;
+    }
+
+    private function verifyStock(Company $company, StockLedgerCheck $stock): bool
+    {
+        $ok = true;
+
+        foreach ($stock->differences($company->id) as $difference) {
+            $this->error(sprintf(
+                '[%s] stock does not match %s %s: ledger %s, stock %s (difference %s).',
+                $company->name,
+                $difference['code'],
+                $difference['name'],
+                number_format($difference['ledger'] / 100, 2),
+                number_format($difference['stock'] / 100, 2),
+                number_format(($difference['ledger'] - $difference['stock']) / 100, 2),
+            ));
             $ok = false;
         }
 
