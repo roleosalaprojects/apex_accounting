@@ -36,11 +36,11 @@ class AssetCategoryResource extends Resource
         return $schema->components([
             TextInput::make('name')->required()->maxLength(120),
             Select::make('fixed_asset_account_id')->label('Fixed asset account')
-                ->options(fn () => self::accountOptions(AccountType::Asset))->required(),
+                ->options(fn () => self::accountOptions(AccountType::Asset))->required()->searchable(),
             Select::make('accum_depreciation_account_id')->label('Accumulated depreciation account')
-                ->options(fn () => self::accountOptions(AccountType::Asset))->required(),
+                ->options(fn () => self::accountOptions(AccountType::Asset))->required()->searchable(),
             Select::make('depreciation_expense_account_id')->label('Depreciation expense account')
-                ->options(fn () => self::accountOptions(AccountType::Expense))->required(),
+                ->options(fn () => self::accountOptions(AccountType::Expense))->required()->searchable(),
             TextInput::make('default_useful_life_months')->label('Default useful life (months)')
                 ->numeric()->integer()->default(60)->required(),
             Select::make('method')->options(['straight_line' => 'Straight line'])->default('straight_line')->required(),

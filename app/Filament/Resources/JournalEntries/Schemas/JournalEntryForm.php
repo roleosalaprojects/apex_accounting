@@ -44,13 +44,13 @@ class JournalEntryForm
                     TextInput::make('credit')->label('Credit (P)')->numeric()->default(0)->columnSpan(2),
                     TextInput::make('memo')->columnSpan(4),
                     Select::make('department_id')->label('Dept')
-                        ->options(fn () => Department::query()->pluck('name', 'id'))->columnSpan(3),
+                        ->options(fn () => Department::query()->pluck('name', 'id'))->columnSpan(3)->searchable(),
                     Select::make('project_id')->label('Project')
-                        ->options(fn () => Project::query()->pluck('name', 'id'))->columnSpan(3),
+                        ->options(fn () => Project::query()->pluck('name', 'id'))->columnSpan(3)->searchable(),
                     Select::make('fund_id')->label('Fund')
-                        ->options(fn () => Fund::query()->pluck('name', 'id'))->columnSpan(3),
+                        ->options(fn () => Fund::query()->pluck('name', 'id'))->columnSpan(3)->searchable(),
                     Select::make('branch_id')->label('Branch')
-                        ->options(fn () => Branch::query()->pluck('name', 'id'))->columnSpan(3),
+                        ->options(fn () => Branch::query()->pluck('name', 'id'))->columnSpan(3)->searchable(),
                 ]),
         ]);
     }

@@ -54,11 +54,11 @@ class SalesOrderForm
                             ->dehydrateStateUsing(fn (mixed $state): int => (int) round((float) $state * 100)),
                         Select::make('tax_code_id')->label('Tax')
                             ->options(fn (): array => TaxCode::query()->pluck('code', 'id')->all())
-                            ->required()->columnSpan(2),
+                            ->required()->columnSpan(2)->searchable(),
                         Select::make('income_account_id')->label('Income account')
                             ->options(fn (): array => Account::query()->where('type', AccountType::Income->value)
                                 ->orderBy('code')->get()->mapWithKeys(fn (Account $a): array => [$a->id => "{$a->code} — {$a->name}"])->all())
-                            ->required()->columnSpan(12),
+                            ->required()->columnSpan(12)->searchable(),
                     ]),
             ]);
     }

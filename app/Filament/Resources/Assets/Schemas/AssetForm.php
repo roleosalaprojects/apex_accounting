@@ -24,7 +24,7 @@ class AssetForm
                         $set('useful_life_months', $months);
                     }
                 })
-                ->required(),
+                ->required()->searchable(),
             TextInput::make('name')->required()->maxLength(160),
             TextInput::make('number')->label('Asset no.')->maxLength(60),
             DatePicker::make('acquisition_date')->default(now())->required(),

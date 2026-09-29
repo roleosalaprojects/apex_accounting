@@ -31,7 +31,7 @@ class ListReconciliations extends ListRecords
                     Select::make('bank_account_id')->label('Bank account')
                         ->options(fn () => BankAccount::query()->with('account')->get()
                             ->mapWithKeys(fn (BankAccount $b) => [$b->id => ($b->account?->name ?? 'Account').($b->account_no ? " ({$b->account_no})" : '')]))
-                        ->required(),
+                        ->required()->searchable(),
                     DatePicker::make('statement_date')->default(now())->required(),
                     TextInput::make('statement_ending_balance')->label('Statement ending balance (P)')->numeric()->required(),
                 ])

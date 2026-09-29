@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Resources\Customers\Schemas;
 
 use App\Filament\Support\CreatedBySelect;
+use App\Filament\Support\PesoInput;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
@@ -29,8 +30,7 @@ class CustomerForm
                     ->required()
                     ->numeric()
                     ->default(0),
-                TextInput::make('credit_limit')
-                    ->numeric(),
+                PesoInput::make('credit_limit'),
                 CreatedBySelect::make(),
             ]);
     }

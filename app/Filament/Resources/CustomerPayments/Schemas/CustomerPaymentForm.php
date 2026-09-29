@@ -29,7 +29,7 @@ class CustomerPaymentForm
                 ->options(fn () => Account::query()
                     ->whereIn('subtype', [AccountSubtype::Cash->value, AccountSubtype::Bank->value])
                     ->orderBy('code')->get()->mapWithKeys(fn (Account $a) => [$a->id => "{$a->code} — {$a->name}"]))
-                ->required(),
+                ->required()->searchable(),
             TextInput::make('amount')->label('Cash received (P)')->numeric()->required(),
             TextInput::make('ewt_withheld')->label('EWT withheld (P)')->numeric()->default(0)
                 ->helperText('When the customer is a withholding agent (2307).'),

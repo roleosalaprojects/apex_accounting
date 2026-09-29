@@ -81,7 +81,7 @@ class BillForm
                         Select::make('tax_code_id')
                             ->label('Tax')
                             ->options(fn () => TaxCode::query()->pluck('code', 'id'))
-                            ->required()->columnSpan(2),
+                            ->required()->columnSpan(2)->searchable(),
                         Select::make('vat_bucket')
                             ->label('Input VAT bucket')
                             ->options(VatBucket::class)

@@ -29,7 +29,7 @@ class ListBankStatementLines extends ListRecords
                     Select::make('bank_account_id')->label('Bank account')
                         ->options(fn (): array => BankAccount::query()->get()
                             ->mapWithKeys(fn (BankAccount $b): array => [$b->id => trim("{$b->bank_name} {$b->account_no}")])->all())
-                        ->required(),
+                        ->required()->searchable(),
                     FileUpload::make('file')->label('Statement CSV')
                         ->acceptedFileTypes(['text/csv', 'text/plain', 'application/csv'])
                         ->disk('local')->directory('bank-imports')->required(),

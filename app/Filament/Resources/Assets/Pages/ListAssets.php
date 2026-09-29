@@ -36,7 +36,7 @@ class ListAssets extends ListRecords
                                 $p->id => "{$p->fiscal_year}-".str_pad((string) $p->period_no, 2, '0', STR_PAD_LEFT)
                                     ." ({$p->starts_on->toDateString()} – {$p->ends_on->toDateString()})",
                             ]))
-                        ->required(),
+                        ->required()->searchable(),
                 ])
                 ->action(function (array $data): void {
                     /** @var Company $company */

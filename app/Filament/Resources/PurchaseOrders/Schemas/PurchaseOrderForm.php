@@ -54,7 +54,7 @@ class PurchaseOrderForm
                             ->dehydrateStateUsing(fn (mixed $state): int => (int) round((float) $state * 100)),
                         Select::make('tax_code_id')->label('Tax')
                             ->options(fn (): array => TaxCode::query()->pluck('code', 'id')->all())
-                            ->required()->columnSpan(2),
+                            ->required()->columnSpan(2)->searchable(),
                         Select::make('vat_bucket')->label('Input VAT bucket')
                             ->options(VatBucket::class)
                             ->helperText('Required when the line carries 12% input VAT.')

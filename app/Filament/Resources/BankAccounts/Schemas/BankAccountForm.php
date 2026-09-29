@@ -20,7 +20,7 @@ class BankAccountForm
                 ->options(fn () => Account::query()
                     ->whereIn('subtype', [AccountSubtype::Cash->value, AccountSubtype::Bank->value])
                     ->orderBy('code')->get()->mapWithKeys(fn (Account $a) => [$a->id => "{$a->code} — {$a->name}"]))
-                ->required(),
+                ->required()->searchable(),
             TextInput::make('bank_name')->maxLength(120),
             TextInput::make('account_no')->label('Account no.')->maxLength(60),
             Toggle::make('is_active')->default(true),

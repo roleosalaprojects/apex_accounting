@@ -6,15 +6,19 @@ use App\Enums\CompanyRole;
 use App\Filament\Resources\Accounts\Pages\CreateAccount;
 use App\Filament\Resources\Branches\Pages\CreateBranch;
 use App\Filament\Resources\Customers\Pages\CreateCustomer;
+use App\Filament\Resources\Customers\Pages\EditCustomer;
 use App\Filament\Resources\Departments\Pages\CreateDepartment;
 use App\Filament\Resources\Funds\Pages\CreateFund;
 use App\Filament\Resources\Funds\Pages\EditFund;
 use App\Filament\Resources\Funds\Pages\ListFunds;
 use App\Filament\Resources\Items\Pages\CreateItem;
+use App\Filament\Resources\Items\Pages\EditItem;
 use App\Filament\Resources\Projects\Pages\CreateProject;
 use App\Filament\Resources\Vendors\Pages\CreateVendor;
 use App\Models\Company;
+use App\Models\Customer;
 use App\Models\Fund;
+use App\Models\Item;
 use App\Models\User;
 use Filament\Facades\Filament;
 use Livewire\Livewire;
@@ -84,4 +88,39 @@ it('never offers or accepts another company on master-data forms', function () {
         ->assertHasNoFormErrors();
 
     expect(Fund::query()->withoutGlobalScopes()->findOrFail($fund->id)->company_id)->toBe($this->company->id);
+});
+
+it('shows peso amounts in pesos on edit forms and saves them back unchanged', function () {
+    $item = Item::factory()->create(['company_id' => $this->company->id, 'default_sales_price' => 1_234_56, 'default_purchase_price' => 999_00]);
+
+    Livewire::test(EditItem::class, ['record' => $item->getKey()])
+        ->assertFormSet(['default_sales_price' => '1234.56', 'default_purchase_price' => '999.00'])
+        ->call('save')
+        ->assertHasNoFormErrors();
+
+    expect($item->fresh()->default_sales_price->minor)->toBe(1_234_56)
+        ->and($item->fresh()->default_purchase_price->minor)->toBe(999_00);
+
+    Livewire::test(EditItem::class, ['record' => $item->getKey()])
+        ->fillForm(['default_sales_price' => '1500.25'])
+        ->call('save')
+        ->assertHasNoFormErrors();
+
+    expect($item->fresh()->default_sales_price->minor)->toBe(1_500_25);
+
+    $customer = Customer::factory()->create(['company_id' => $this->company->id, 'credit_limit' => 50_000_00]);
+
+    Livewire::test(EditCustomer::class, ['record' => $customer->getKey()])
+        ->assertFormSet(['credit_limit' => '50000.00'])
+        ->call('save')
+        ->assertHasNoFormErrors();
+
+    expect($customer->fresh()->credit_limit?->minor)->toBe(50_000_00);
+
+    Livewire::test(EditCustomer::class, ['record' => $customer->getKey()])
+        ->fillForm(['credit_limit' => null])
+        ->call('save')
+        ->assertHasNoFormErrors();
+
+    expect($customer->fresh()->credit_limit)->toBeNull();
 });

@@ -60,7 +60,7 @@ class CreditMemosTable
                                         ->mapWithKeys(fn (Invoice $i) => [
                                             $i->id => "{$i->number} — ₱".number_format($i->outstanding() / 100, 2).' open',
                                         ]))
-                                    ->required(),
+                                    ->required()->searchable(),
                                 TextInput::make('amount')
                                     ->label('Amount (₱)')
                                     ->numeric()

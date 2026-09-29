@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Resources\Vendors\Schemas;
 
 use App\Filament\Support\CreatedBySelect;
+use App\Models\WithholdingCode;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -27,7 +28,10 @@ class VendorForm
                 Toggle::make('is_vat_registered')
                     ->required(),
                 Select::make('default_withholding_code_id')
-                    ->relationship('defaultWithholdingCode', 'name'),
+                    ->relationship('defaultWithholdingCode', 'name')
+                    ->getOptionLabelFromRecordUsing(fn (WithholdingCode $record): string => "{$record->atc} — {$record->name}")
+                    ->searchable(['atc', 'name'])
+                    ->preload(),
                 TextInput::make('terms_days')
                     ->required()
                     ->numeric()

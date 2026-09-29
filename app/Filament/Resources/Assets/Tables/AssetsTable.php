@@ -61,7 +61,7 @@ class AssetsTable
                                 ->whereIn('subtype', [AccountSubtype::Cash->value, AccountSubtype::Bank->value])
                                 ->orderBy('code')->get()
                                 ->mapWithKeys(fn (Account $a) => [$a->id => "{$a->code} — {$a->name}"]))
-                            ->required(),
+                            ->required()->searchable(),
                         Toggle::make('vatable')->label('VATable disposal (12% output VAT)')->default(false),
                     ])
                     ->action(function (Asset $record, array $data): void {

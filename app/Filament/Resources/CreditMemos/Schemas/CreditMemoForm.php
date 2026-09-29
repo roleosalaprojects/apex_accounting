@@ -61,7 +61,7 @@ class CreditMemoForm
                         Select::make('tax_code_id')
                             ->label('Tax')
                             ->options(fn () => TaxCode::query()->pluck('code', 'id'))
-                            ->required()->columnSpan(2),
+                            ->required()->columnSpan(2)->searchable(),
                         Select::make('income_account_id')
                             ->label('Income account')
                             ->options(fn () => Account::query()
@@ -69,7 +69,7 @@ class CreditMemoForm
                                 ->orderBy('code')
                                 ->get()
                                 ->mapWithKeys(fn (Account $a) => [$a->id => "{$a->code} — {$a->name}"]))
-                            ->required()->columnSpan(12),
+                            ->required()->columnSpan(12)->searchable(),
                     ]),
             ]);
     }

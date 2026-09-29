@@ -8,6 +8,7 @@ use App\Enums\AccountSubtype;
 use App\Enums\AccountType;
 use App\Enums\NormalBalance;
 use App\Filament\Support\CreatedBySelect;
+use App\Models\Account;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -21,7 +22,10 @@ class AccountForm
         return $schema
             ->components([
                 Select::make('parent_id')
-                    ->relationship('parent', 'name'),
+                    ->relationship('parent', 'name')
+                    ->getOptionLabelFromRecordUsing(fn (Account $record): string => "{$record->code} — {$record->name}")
+                    ->searchable(['code', 'name'])
+                    ->preload(),
                 TextInput::make('code')
                     ->required(),
                 TextInput::make('name')

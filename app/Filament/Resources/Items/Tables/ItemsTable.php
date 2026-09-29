@@ -91,7 +91,7 @@ class ItemsTable
                                 ->orderBy('code')
                                 ->get()
                                 ->mapWithKeys(fn (Account $a) => [$a->id => "{$a->code} — {$a->name}"]))
-                            ->required(),
+                            ->required()->searchable(),
                         TextInput::make('unit_cost')
                             ->label('Unit cost (₱)')
                             ->numeric()

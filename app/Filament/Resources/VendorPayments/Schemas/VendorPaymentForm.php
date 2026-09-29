@@ -30,10 +30,10 @@ class VendorPaymentForm
                 ->options(fn () => Account::query()
                     ->whereIn('subtype', [AccountSubtype::Cash->value, AccountSubtype::Bank->value])
                     ->orderBy('code')->get()->mapWithKeys(fn (Account $a) => [$a->id => "{$a->code} — {$a->name}"]))
-                ->required(),
+                ->required()->searchable(),
             Select::make('withholding_code_id')->label('EWT code (optional)')
                 ->options(fn () => WithholdingCode::query()->get()->mapWithKeys(fn (WithholdingCode $w) => [$w->id => "{$w->code} — {$w->name}"]))
-                ->helperText('Defaults to the vendor\'s default code if left blank.'),
+                ->helperText('Defaults to the vendor\'s default code if left blank.')->searchable(),
             TextInput::make('external_reference_no')->label('Check no.'),
             Repeater::make('applications')->label('Apply to bills')
                 ->columnSpanFull()->minItems(1)->defaultItems(1)->columns(2)

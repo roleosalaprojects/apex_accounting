@@ -103,7 +103,7 @@ class Team extends Page
                 }),
             Action::make('changeRole')->label('Change Role')->icon('heroicon-o-arrows-right-left')
                 ->schema(fn (): array => [
-                    Select::make('user_id')->label('Member')->options($this->memberOptions())->required(),
+                    Select::make('user_id')->label('Member')->options($this->memberOptions())->required()->searchable(),
                     Select::make('role')->options(self::roleOptions())->required(),
                 ])
                 ->action(function (array $data): void {
@@ -123,7 +123,7 @@ class Team extends Page
                 }),
             Action::make('removeMember')->label('Remove Member')->icon('heroicon-o-user-minus')->color('danger')
                 ->schema(fn (): array => [
-                    Select::make('user_id')->label('Member')->options($this->memberOptions())->required(),
+                    Select::make('user_id')->label('Member')->options($this->memberOptions())->required()->searchable(),
                 ])
                 ->requiresConfirmation()
                 ->action(function (array $data): void {
