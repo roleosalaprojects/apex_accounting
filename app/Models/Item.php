@@ -11,6 +11,8 @@ use App\Support\Money;
 use Database\Factories\ItemFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -56,5 +58,45 @@ final class Item extends Model
     public function valuation(): HasOne
     {
         return $this->hasOne(ItemValuation::class);
+    }
+
+    /**
+     * @return BelongsTo<Account, $this>
+     */
+    public function incomeAccount(): BelongsTo
+    {
+        return $this->belongsTo(Account::class, 'income_account_id');
+    }
+
+    /**
+     * @return BelongsTo<Account, $this>
+     */
+    public function cogsAccount(): BelongsTo
+    {
+        return $this->belongsTo(Account::class, 'cogs_account_id');
+    }
+
+    /**
+     * @return BelongsTo<Account, $this>
+     */
+    public function inventoryAccount(): BelongsTo
+    {
+        return $this->belongsTo(Account::class, 'inventory_account_id');
+    }
+
+    /**
+     * @return HasMany<InvoiceLine, $this>
+     */
+    public function invoiceLines(): HasMany
+    {
+        return $this->hasMany(InvoiceLine::class);
+    }
+
+    /**
+     * @return HasMany<BillLine, $this>
+     */
+    public function billLines(): HasMany
+    {
+        return $this->hasMany(BillLine::class);
     }
 }

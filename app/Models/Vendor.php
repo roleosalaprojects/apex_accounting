@@ -58,4 +58,12 @@ final class Vendor extends Model
     {
         return $this->hasMany(Bill::class);
     }
+
+    /**
+     * @return HasMany<VendorPayment, $this>
+     */
+    public function payments(): HasMany
+    {
+        return $this->hasMany(VendorPayment::class);
+    }
 }

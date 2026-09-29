@@ -7,8 +7,11 @@ namespace App\Filament\Resources\Branches;
 use App\Filament\Resources\Branches\Pages\CreateBranch;
 use App\Filament\Resources\Branches\Pages\EditBranch;
 use App\Filament\Resources\Branches\Pages\ListBranches;
+use App\Filament\Resources\Branches\Pages\ViewBranch;
 use App\Filament\Resources\Branches\Schemas\BranchForm;
 use App\Filament\Resources\Branches\Tables\BranchesTable;
+use App\Filament\Support\DimensionInfolist;
+use App\Filament\Support\Widgets\LedgerActivity;
 use App\Models\Branch;
 use BackedEnum;
 use Filament\Resources\Resource;
@@ -29,6 +32,11 @@ class BranchResource extends Resource
         return BranchForm::configure($schema);
     }
 
+    public static function infolist(Schema $schema): Schema
+    {
+        return DimensionInfolist::configure($schema, 'branch');
+    }
+
     public static function table(Table $table): Table
     {
         return BranchesTable::configure($table);
@@ -41,11 +49,17 @@ class BranchResource extends Resource
         ];
     }
 
+    public static function getWidgets(): array
+    {
+        return [LedgerActivity::class];
+    }
+
     public static function getPages(): array
     {
         return [
             'index' => ListBranches::route('/'),
             'create' => CreateBranch::route('/create'),
+            'view' => ViewBranch::route('/{record}'),
             'edit' => EditBranch::route('/{record}/edit'),
         ];
     }

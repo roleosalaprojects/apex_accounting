@@ -90,6 +90,26 @@ final class InventoryService
         return $this->valueOf($valuation->qty_units, $valuation->avg_cost_x10000);
     }
 
+    /**
+     * Stock on hand for display. Unlike the posting paths, never creates the
+     * valuation row: an item that has never moved reads as zero.
+     *
+     * @return array{qty_units: int, avg_cost_x10000: int, value: int}
+     */
+    public function onHand(Item $item): array
+    {
+        $valuation = ItemValuation::query()
+            ->withoutGlobalScopes()
+            ->where('company_id', $item->company_id)
+            ->where('item_id', $item->id)
+            ->first();
+
+        $qty = $valuation->qty_units ?? 0;
+        $avg = $valuation->avg_cost_x10000 ?? 0;
+
+        return ['qty_units' => $qty, 'avg_cost_x10000' => $avg, 'value' => $this->valueOf($qty, $avg)];
+    }
+
     private function valueOf(int $qtyUnits, int $avgX10000): int
     {
         if ($qtyUnits === 0) {

@@ -7,16 +7,19 @@ namespace App\Filament\Resources\Items\Tables;
 use App\Actions\Inventory\AdjustInventory;
 use App\Enums\AccountType;
 use App\Enums\ItemType;
+use App\Filament\Support\Peso;
+use App\Filament\Support\Qty;
 use App\Models\Account;
 use App\Models\Item;
 use App\Models\User;
-use App\Support\Quantity;
+use App\Support\Money;
 use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\ForceDeleteBulkAction;
 use Filament\Actions\RestoreBulkAction;
+use Filament\Actions\ViewAction;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
@@ -40,12 +43,14 @@ class ItemsTable
                     ->label('SKU')
                     ->searchable(),
                 TextColumn::make('name')
+                    ->wrap()
                     ->searchable(),
                 TextColumn::make('type')
+                    ->formatStateUsing(fn (ItemType $state): string => ucfirst(str_replace('_', '-', $state->value)))
                     ->badge(),
                 TextColumn::make('valuation.qty_units')
                     ->label('Qty on hand')
-                    ->formatStateUsing(fn (int $state): string => rtrim(rtrim(Quantity::fromUnits($state), '0'), '.'))
+                    ->formatStateUsing(fn (int $state, Item $record): string => Qty::units($state).' '.$record->unit)
                     ->placeholder('—'),
                 TextColumn::make('valuation.avg_cost_x10000')
                     ->label('Avg cost')
@@ -53,14 +58,15 @@ class ItemsTable
                     ->placeholder('—'),
                 TextColumn::make('default_sales_price')
                     ->label('Sales price')
-                    ->money('PHP', divideBy: 100)
+                    ->formatStateUsing(fn (Money $state): string => Peso::format($state))
                     ->sortable(),
                 TextColumn::make('default_purchase_price')
                     ->label('Purchase price')
-                    ->money('PHP', divideBy: 100)
+                    ->formatStateUsing(fn (Money $state): string => Peso::format($state))
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
-                TextColumn::make('unit'),
+                TextColumn::make('unit')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 IconColumn::make('is_vat_exempt_item')
                     ->label('VAT-exempt')
                     ->boolean()
@@ -72,6 +78,7 @@ class ItemsTable
                 TrashedFilter::make(),
             ])
             ->recordActions([
+                ViewAction::make(),
                 Action::make('adjust')
                     ->label('Adjust')
                     ->icon('heroicon-o-adjustments-horizontal')

@@ -12,9 +12,11 @@ use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
+use Filament\Infolists\Components\IconEntry;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
+use Filament\Tables\Columns\IconColumn;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
@@ -24,6 +26,14 @@ use Illuminate\View\Middleware\ShareErrorsFromSession;
 
 class AdminPanelProvider extends PanelProvider
 {
+    public function boot(): void
+    {
+        // A "no" (not a withholding agent, not VAT-exempt) is a fact, not an
+        // error: show false booleans in gray rather than red.
+        IconColumn::configureUsing(fn (IconColumn $column): IconColumn => $column->falseColor('gray'));
+        IconEntry::configureUsing(fn (IconEntry $entry): IconEntry => $entry->falseColor('gray'));
+    }
+
     public function panel(Panel $panel): Panel
     {
         return $panel

@@ -52,4 +52,12 @@ final class Customer extends Model
     {
         return $this->hasMany(Invoice::class);
     }
+
+    /**
+     * @return HasMany<CustomerPayment, $this>
+     */
+    public function payments(): HasMany
+    {
+        return $this->hasMany(CustomerPayment::class);
+    }
 }

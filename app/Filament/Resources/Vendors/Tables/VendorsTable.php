@@ -9,6 +9,7 @@ use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\ForceDeleteBulkAction;
 use Filament\Actions\RestoreBulkAction;
+use Filament\Actions\ViewAction;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\TrashedFilter;
@@ -20,25 +21,31 @@ class VendorsTable
     {
         return $table
             ->columns([
-                TextColumn::make('company.name')
-                    ->searchable(),
                 TextColumn::make('code')
                     ->searchable(),
                 TextColumn::make('name')
+                    ->wrap()
                     ->searchable(),
                 TextColumn::make('tin')
+                    ->label('TIN')
                     ->searchable(),
                 IconColumn::make('is_vat_registered')
+                    ->label('VAT')
                     ->boolean(),
                 TextColumn::make('defaultWithholdingCode.name')
+                    ->label('Default EWT')
+                    ->placeholder('—')
+                    ->wrap()
                     ->searchable(),
                 TextColumn::make('terms_days')
-                    ->numeric()
+                    ->label('Terms')
+                    ->formatStateUsing(fn (int $state): string => $state === 0 ? 'On receipt' : "Net {$state}")
                     ->sortable(),
                 TextColumn::make('createdBy.name')
                     ->label('Created by')
                     ->placeholder('—')
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('deleted_at')
                     ->dateTime()
                     ->sortable()
@@ -56,6 +63,7 @@ class VendorsTable
                 TrashedFilter::make(),
             ])
             ->recordActions([
+                ViewAction::make(),
                 EditAction::make(),
             ])
             ->toolbarActions([

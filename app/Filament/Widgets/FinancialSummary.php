@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Widgets;
 
 use App\Enums\AccountSubtype;
+use App\Filament\Support\FiscalYear;
 use App\Filament\Support\Peso;
 use App\Filament\Widgets\Concerns\ChecksCompanyPermission;
 use App\Models\Company;
@@ -46,10 +47,7 @@ class FinancialSummary extends Widget
         $today = CarbonImmutable::today();
         $metrics = app(DashboardMetrics::class);
 
-        $yearStart = CarbonImmutable::create($today->year, $company->fiscal_year_start_month, 1);
-        if ($yearStart->greaterThan($today)) {
-            $yearStart = $yearStart->subYear();
-        }
+        $yearStart = FiscalYear::start($today);
 
         $pnl = app(ProfitAndLossReport::class);
         $current = $pnl->build($company->id, $yearStart->toDateString(), $today->toDateString());

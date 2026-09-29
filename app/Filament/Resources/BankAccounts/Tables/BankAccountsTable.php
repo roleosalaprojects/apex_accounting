@@ -6,6 +6,8 @@ namespace App\Filament\Resources\BankAccounts\Tables;
 
 use App\Models\BankAccount;
 use App\Services\Banking\BankBalanceService;
+use Filament\Actions\EditAction;
+use Filament\Actions\ViewAction;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
@@ -25,6 +27,10 @@ class BankAccountsTable
                         app(BankBalanceService::class)->currentBalance($record) / 100, 2
                     )),
                 IconColumn::make('is_active')->boolean(),
+            ])
+            ->recordActions([
+                ViewAction::make(),
+                EditAction::make(),
             ]);
     }
 }

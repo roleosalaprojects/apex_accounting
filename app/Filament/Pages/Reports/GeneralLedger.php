@@ -13,6 +13,17 @@ class GeneralLedger extends ReportPage
 
     protected static ?int $navigationSort = 11;
 
+    /** ?account={id} opens the ledger of that account, e.g. from its view page. */
+    public function mount(): void
+    {
+        parent::mount();
+
+        $account = request()->integer('account');
+        if ($account > 0 && Account::query()->whereKey($account)->exists()) {
+            $this->entity = (string) $account;
+        }
+    }
+
     protected function entityFilter(): ?array
     {
         return [

@@ -7,8 +7,11 @@ namespace App\Filament\Resources\Departments;
 use App\Filament\Resources\Departments\Pages\CreateDepartment;
 use App\Filament\Resources\Departments\Pages\EditDepartment;
 use App\Filament\Resources\Departments\Pages\ListDepartments;
+use App\Filament\Resources\Departments\Pages\ViewDepartment;
 use App\Filament\Resources\Departments\Schemas\DepartmentForm;
 use App\Filament\Resources\Departments\Tables\DepartmentsTable;
+use App\Filament\Support\DimensionInfolist;
+use App\Filament\Support\Widgets\LedgerActivity;
 use App\Models\Department;
 use BackedEnum;
 use Filament\Resources\Resource;
@@ -29,6 +32,11 @@ class DepartmentResource extends Resource
         return DepartmentForm::configure($schema);
     }
 
+    public static function infolist(Schema $schema): Schema
+    {
+        return DimensionInfolist::configure($schema, 'department');
+    }
+
     public static function table(Table $table): Table
     {
         return DepartmentsTable::configure($table);
@@ -41,11 +49,17 @@ class DepartmentResource extends Resource
         ];
     }
 
+    public static function getWidgets(): array
+    {
+        return [LedgerActivity::class];
+    }
+
     public static function getPages(): array
     {
         return [
             'index' => ListDepartments::route('/'),
             'create' => CreateDepartment::route('/create'),
+            'view' => ViewDepartment::route('/{record}'),
             'edit' => EditDepartment::route('/{record}/edit'),
         ];
     }

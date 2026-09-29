@@ -7,7 +7,11 @@ namespace App\Filament\Resources\Vendors;
 use App\Filament\Resources\Vendors\Pages\CreateVendor;
 use App\Filament\Resources\Vendors\Pages\EditVendor;
 use App\Filament\Resources\Vendors\Pages\ListVendors;
+use App\Filament\Resources\Vendors\Pages\ViewVendor;
+use App\Filament\Resources\Vendors\RelationManagers\BillsRelationManager;
+use App\Filament\Resources\Vendors\RelationManagers\PaymentsRelationManager;
 use App\Filament\Resources\Vendors\Schemas\VendorForm;
+use App\Filament\Resources\Vendors\Schemas\VendorInfolist;
 use App\Filament\Resources\Vendors\Tables\VendorsTable;
 use App\Models\Vendor;
 use BackedEnum;
@@ -24,9 +28,16 @@ class VendorResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
 
+    protected static ?string $recordTitleAttribute = 'name';
+
     public static function form(Schema $schema): Schema
     {
         return VendorForm::configure($schema);
+    }
+
+    public static function infolist(Schema $schema): Schema
+    {
+        return VendorInfolist::configure($schema);
     }
 
     public static function table(Table $table): Table
@@ -37,7 +48,8 @@ class VendorResource extends Resource
     public static function getRelations(): array
     {
         return [
-            //
+            BillsRelationManager::class,
+            PaymentsRelationManager::class,
         ];
     }
 
@@ -46,6 +58,7 @@ class VendorResource extends Resource
         return [
             'index' => ListVendors::route('/'),
             'create' => CreateVendor::route('/create'),
+            'view' => ViewVendor::route('/{record}'),
             'edit' => EditVendor::route('/{record}/edit'),
         ];
     }
