@@ -35,8 +35,9 @@ class VendorsTable
                 TextColumn::make('terms_days')
                     ->numeric()
                     ->sortable(),
-                TextColumn::make('created_by')
-                    ->numeric()
+                TextColumn::make('createdBy.name')
+                    ->label('Created by')
+                    ->placeholder('—')
                     ->sortable(),
                 TextColumn::make('deleted_at')
                     ->dateTime()

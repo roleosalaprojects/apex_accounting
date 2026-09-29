@@ -16,9 +16,6 @@ class ItemForm
     {
         return $schema
             ->components([
-                Select::make('company_id')
-                    ->relationship('company', 'name')
-                    ->required(),
                 TextInput::make('sku')
                     ->label('SKU')
                     ->required(),

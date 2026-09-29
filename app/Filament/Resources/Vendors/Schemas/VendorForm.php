@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Vendors\Schemas;
 
+use App\Filament\Support\CreatedBySelect;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -16,9 +17,6 @@ class VendorForm
     {
         return $schema
             ->components([
-                Select::make('company_id')
-                    ->relationship('company', 'name')
-                    ->required(),
                 TextInput::make('code')
                     ->required(),
                 TextInput::make('name')
@@ -34,8 +32,7 @@ class VendorForm
                     ->required()
                     ->numeric()
                     ->default(0),
-                TextInput::make('created_by')
-                    ->numeric(),
+                CreatedBySelect::make(),
             ]);
     }
 }

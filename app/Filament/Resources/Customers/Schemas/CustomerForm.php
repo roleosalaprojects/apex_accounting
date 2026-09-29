@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Customers\Schemas;
 
-use Filament\Forms\Components\Select;
+use App\Filament\Support\CreatedBySelect;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
@@ -16,9 +16,6 @@ class CustomerForm
     {
         return $schema
             ->components([
-                Select::make('company_id')
-                    ->relationship('company', 'name')
-                    ->required(),
                 TextInput::make('code')
                     ->required(),
                 TextInput::make('name')
@@ -34,8 +31,7 @@ class CustomerForm
                     ->default(0),
                 TextInput::make('credit_limit')
                     ->numeric(),
-                TextInput::make('created_by')
-                    ->numeric(),
+                CreatedBySelect::make(),
             ]);
     }
 }

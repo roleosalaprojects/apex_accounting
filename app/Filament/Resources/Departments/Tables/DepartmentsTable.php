@@ -28,8 +28,9 @@ class DepartmentsTable
                     ->searchable(),
                 IconColumn::make('is_active')
                     ->boolean(),
-                TextColumn::make('created_by')
-                    ->numeric()
+                TextColumn::make('createdBy.name')
+                    ->label('Created by')
+                    ->placeholder('—')
                     ->sortable(),
                 TextColumn::make('deleted_at')
                     ->dateTime()

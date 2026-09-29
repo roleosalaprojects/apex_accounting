@@ -8,6 +8,7 @@ use App\Enums\AccountSubtype;
 use App\Enums\AccountType;
 use App\Enums\NormalBalance;
 use App\Models\Concerns\BelongsToCompany;
+use App\Models\Concerns\HasCreator;
 use Database\Factories\AccountFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -30,6 +31,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 final class Account extends Model
 {
     use BelongsToCompany;
+    use HasCreator;
 
     /** @use HasFactory<AccountFactory> */
     use HasFactory;

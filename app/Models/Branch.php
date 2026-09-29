@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Models\Concerns\BelongsToCompany;
+use App\Models\Concerns\HasCreator;
 use Database\Factories\BranchFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -22,6 +23,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 final class Branch extends Model
 {
     use BelongsToCompany;
+    use HasCreator;
 
     /** @use HasFactory<BranchFactory> */
     use HasFactory;

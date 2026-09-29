@@ -7,6 +7,7 @@ namespace App\Filament\Resources\Accounts\Schemas;
 use App\Enums\AccountSubtype;
 use App\Enums\AccountType;
 use App\Enums\NormalBalance;
+use App\Filament\Support\CreatedBySelect;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -19,9 +20,6 @@ class AccountForm
     {
         return $schema
             ->components([
-                Select::make('company_id')
-                    ->relationship('company', 'name')
-                    ->required(),
                 Select::make('parent_id')
                     ->relationship('parent', 'name'),
                 TextInput::make('code')
@@ -43,8 +41,7 @@ class AccountForm
                     ->required(),
                 Toggle::make('is_active')
                     ->required(),
-                TextInput::make('created_by')
-                    ->numeric(),
+                CreatedBySelect::make(),
             ]);
     }
 }

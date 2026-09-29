@@ -36,8 +36,9 @@ class CustomersTable
                 TextColumn::make('credit_limit')
                     ->numeric()
                     ->sortable(),
-                TextColumn::make('created_by')
-                    ->numeric()
+                TextColumn::make('createdBy.name')
+                    ->label('Created by')
+                    ->placeholder('—')
                     ->sortable(),
                 TextColumn::make('deleted_at')
                     ->dateTime()

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Models\Concerns\BelongsToCompany;
+use App\Models\Concerns\HasCreator;
 use Database\Factories\VendorFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -25,6 +26,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 final class Vendor extends Model
 {
     use BelongsToCompany;
+    use HasCreator;
 
     /** @use HasFactory<VendorFactory> */
     use HasFactory;

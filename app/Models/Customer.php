@@ -6,6 +6,7 @@ namespace App\Models;
 
 use App\Casts\MoneyCast;
 use App\Models\Concerns\BelongsToCompany;
+use App\Models\Concerns\HasCreator;
 use App\Support\Money;
 use Database\Factories\CustomerFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -26,6 +27,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 final class Customer extends Model
 {
     use BelongsToCompany;
+    use HasCreator;
 
     /** @use HasFactory<CustomerFactory> */
     use HasFactory;
