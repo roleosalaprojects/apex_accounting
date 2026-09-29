@@ -6,6 +6,7 @@ namespace App\Filament\Resources\PurchaseOrders\Schemas;
 
 use App\Enums\PricingMode;
 use App\Enums\VatBucket;
+use App\Filament\Support\PurchaseLineDefaults;
 use App\Models\Account;
 use App\Models\Item;
 use App\Models\TaxCode;
@@ -15,6 +16,8 @@ use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 
 class PurchaseOrderForm
@@ -45,7 +48,9 @@ class PurchaseOrderForm
                     ->schema([
                         Select::make('item_id')->label('Item')
                             ->options(fn (): array => Item::query()->orderBy('name')->pluck('name', 'id')->all())
-                            ->searchable()->columnSpan(3),
+                            ->searchable()->columnSpan(3)
+                            ->live()
+                            ->afterStateUpdated(fn (mixed $state, Get $get, Set $set) => PurchaseLineDefaults::apply($state, $get, $set, 'expense_account_id')),
                         TextInput::make('description')->required()->columnSpan(3),
                         TextInput::make('qty')->numeric()->default(1)->required()->columnSpan(2),
                         TextInput::make('unit_price')->label('Unit price (₱)')
@@ -62,7 +67,10 @@ class PurchaseOrderForm
                         Select::make('expense_account_id')->label('Expense / asset account')
                             ->options(fn (): array => Account::query()->orderBy('code')->get()
                                 ->mapWithKeys(fn (Account $a): array => [$a->id => "{$a->code} — {$a->name}"])->all())
-                            ->searchable()->required()->columnSpan(6),
+                            ->searchable()->required()->columnSpan(6)
+                            ->disabled(fn (Get $get): bool => PurchaseLineDefaults::locksAccount($get('item_id')))
+                            ->dehydrated()
+                            ->helperText(fn (Get $get): ?string => PurchaseLineDefaults::locksAccount($get('item_id')) ? 'Stocked items are costed to their inventory account.' : null),
                     ]),
             ]);
     }

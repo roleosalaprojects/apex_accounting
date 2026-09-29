@@ -8,10 +8,12 @@ use App\Actions\Ledger\PostJournalEntry;
 use App\Data\Ledger\JournalEntryData;
 use App\Data\Ledger\JournalLineData;
 use App\Data\Payables\BillData;
+use App\Data\Payables\BillLineData;
 use App\Enums\InvoiceStatus;
 use App\Enums\ItemType;
 use App\Enums\PricingMode;
 use App\Exceptions\Ledger\InvalidVatBucketException;
+use App\Exceptions\Ledger\InventoryAccountException;
 use App\Models\Account;
 use App\Models\Bill;
 use App\Models\Company;
@@ -37,6 +39,10 @@ use Spatie\LaravelData\DataCollection;
  *   Dr 1400 Input VAT            (direct_vatable VAT)
  *   Dr 1410 Deferred Common VAT  (common VAT)
  *      Cr 2100 AP (partner=vendor)
+ *
+ * Lines for stocked items are received into weighted-average stock (§9), so
+ * their cost may only be debited to the item's inventory account; any other
+ * account is refused, keeping the stock subledger equal to the ledger.
  */
 final class PostBill
 {
@@ -100,7 +106,12 @@ final class PostBill
 
             foreach ($computed['lines'] as $line) {
                 $bill->lines()->create($line['model']);
-                $this->receiveInventory($company, $line);
+
+                // An opening bill carries AP forward against 3950; its stock is
+                // already in the opening count, so receiving it would double it.
+                if (! $data->is_opening) {
+                    $this->receiveInventory($line);
+                }
             }
 
             $entry = $this->post->handle($this->buildJournalData($company, $vendor, $bill, $data, $computed), $actor);
@@ -120,7 +131,22 @@ final class PostBill
         $totals = ['vatable' => 0, 'input_vat' => 0, 'exempt' => 0, 'total' => 0];
         $lineNo = 1;
 
+        $itemIds = [];
         foreach ($data->lines as $lineData) {
+            if ($lineData->item_id !== null) {
+                $itemIds[] = $lineData->item_id;
+            }
+        }
+        $items = Item::query()->withoutGlobalScopes()
+            ->where('company_id', $company->id)->whereIn('id', $itemIds)->get()->keyBy('id');
+
+        foreach ($data->lines as $lineData) {
+            $item = null;
+            if ($lineData->item_id !== null) {
+                $item = $items->get($lineData->item_id) ?? throw new RuntimeException("Item {$lineData->item_id} not found.");
+            }
+            $accountId = $this->costAccountFor($company, $lineNo, $lineData, $item);
+
             /** @var TaxCode|null $taxCode */
             $taxCode = $taxCodes->get($lineData->tax_code_id);
             if ($taxCode === null) {
@@ -175,12 +201,13 @@ final class PostBill
                     'vat_bucket' => $bucket,
                     'line_total' => $costDebit,
                     'vat_amount' => $vat,
-                    'expense_or_asset_account_id' => $lineData->expense_or_asset_account_id,
+                    'expense_or_asset_account_id' => $accountId,
                 ], $dims),
+                'item' => $item,
                 'cost_debit' => $costDebit,
                 'vat' => $vat,
                 'input_vat_account_code' => $inputVatAccountCode,
-                'expense_account_id' => $lineData->expense_or_asset_account_id,
+                'expense_account_id' => $accountId,
                 'tax_code_id' => $taxCode->id,
                 'bucket' => $bucket,
                 'desc' => $lineData->description,
@@ -255,24 +282,43 @@ final class PostBill
     }
 
     /**
+     * The account a line's cost is debited to: the one on the line, except that
+     * a stocked item may only go to its own inventory account.
+     */
+    private function costAccountFor(Company $company, int $lineNo, BillLineData $line, ?Item $item): int
+    {
+        if ($item === null || $item->type !== ItemType::Inventory) {
+            return $line->expense_or_asset_account_id;
+        }
+
+        if ($item->inventory_account_id === null) {
+            throw InventoryAccountException::missing($lineNo, $item->name);
+        }
+
+        if ($line->expense_or_asset_account_id !== $item->inventory_account_id) {
+            $accounts = Account::query()->withoutGlobalScopes()
+                ->where('company_id', $company->id)
+                ->whereIn('id', [$item->inventory_account_id, $line->expense_or_asset_account_id])
+                ->get()->keyBy('id');
+            $label = fn (int $id): string => ($a = $accounts->get($id)) !== null ? "{$a->code} {$a->name}" : "account #{$id}";
+
+            throw InventoryAccountException::mismatch($lineNo, $item->name, $label($item->inventory_account_id), $label($line->expense_or_asset_account_id));
+        }
+
+        return $item->inventory_account_id;
+    }
+
+    /**
      * Receive stock into weighted-average valuation when a line targets an
      * inventory item (§9). The line cost (which already capitalizes exempt VAT)
      * is the receipt cost basis.
      *
      * @param  array<string, mixed>  $line
      */
-    private function receiveInventory(Company $company, array $line): void
+    private function receiveInventory(array $line): void
     {
-        $itemId = $line['model']['item_id'] ?? null;
-        if ($itemId === null) {
-            return;
-        }
-
-        /** @var Item|null $item */
-        $item = Item::query()->withoutGlobalScopes()
-            ->where('company_id', $company->id)->find($itemId);
-
-        if ($item === null || $item->type !== ItemType::Inventory) {
+        $item = $line['item'];
+        if (! $item instanceof Item || $item->type !== ItemType::Inventory) {
             return;
         }
 

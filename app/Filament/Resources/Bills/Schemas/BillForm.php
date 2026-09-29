@@ -6,6 +6,7 @@ namespace App\Filament\Resources\Bills\Schemas;
 
 use App\Enums\PricingMode;
 use App\Enums\VatBucket;
+use App\Filament\Support\PurchaseLineDefaults;
 use App\Models\Account;
 use App\Models\Item;
 use App\Models\TaxCode;
@@ -18,6 +19,8 @@ use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 
 /**
@@ -74,6 +77,8 @@ class BillForm
                             ->label('Item')
                             ->options(fn () => Item::query()->orderBy('name')->pluck('name', 'id'))
                             ->searchable()
+                            ->live()
+                            ->afterStateUpdated(fn (mixed $state, Get $get, Set $set) => PurchaseLineDefaults::apply($state, $get, $set, 'expense_or_asset_account_id'))
                             ->columnSpan(3),
                         TextInput::make('description')->required()->columnSpan(3),
                         TextInput::make('qty')->numeric()->default(1)->required()->columnSpan(2),
@@ -92,6 +97,9 @@ class BillForm
                             ->options(fn () => Account::query()->orderBy('code')->get()
                                 ->mapWithKeys(fn (Account $a) => [$a->id => "{$a->code} — {$a->name}"]))
                             ->searchable()
+                            ->disabled(fn (Get $get): bool => PurchaseLineDefaults::locksAccount($get('item_id')))
+                            ->dehydrated()
+                            ->helperText(fn (Get $get): ?string => PurchaseLineDefaults::locksAccount($get('item_id')) ? 'Stocked items are costed to their inventory account.' : null)
                             ->required()->columnSpan(6),
                     ]),
             ]);
