@@ -6,6 +6,7 @@ namespace App\Services\Reports;
 
 use App\Enums\AccountType;
 use App\Models\Account;
+use Illuminate\Support\Carbon;
 
 /**
  * Statement of Changes in Equity (§12): beginning balance, net change and ending
@@ -15,6 +16,9 @@ use App\Models\Account;
  */
 final class StatementOfChangesInEquity
 {
+    /** Earlier than any posting: "from the beginning". */
+    private const DAWN = '1900-01-01';
+
     public function __construct(
         private readonly ReportBalances $balances,
         private readonly ProfitAndLossReport $profitAndLoss,
@@ -64,12 +68,33 @@ final class StatementOfChangesInEquity
 
         usort($rows, fn (array $a, array $b): int => $a['code'] <=> $b['code']);
 
+        // Earnings sit in the nominal accounts until a year-end close moves
+        // them to Retained Earnings; until then they are still equity, so
+        // they get a row of their own and count in the totals, as on the
+        // balance sheet.
+        $netIncome = $this->profitAndLoss->build($companyId, $from, $asOf)['net_income'];
+        $openingEarnings = $this->profitAndLoss->build($companyId, self::DAWN, Carbon::parse($from)->subDay()->toDateString())['net_income'];
+        $closingEarnings = $openingEarnings + $netIncome;
+
+        if ($openingEarnings !== 0 || $netIncome !== 0) {
+            $rows[] = [
+                'code' => null,
+                'name' => 'Earnings not yet closed to Retained Earnings',
+                'opening' => $openingEarnings,
+                'movement' => $netIncome,
+                'closing' => $closingEarnings,
+            ];
+            $openingTotal += $openingEarnings;
+            $movementTotal += $netIncome;
+            $closingTotal += $closingEarnings;
+        }
+
         return [
             'rows' => $rows,
             'opening_total' => $openingTotal,
             'movement_total' => $movementTotal,
             'closing_total' => $closingTotal,
-            'net_income' => $this->profitAndLoss->build($companyId, $from, $asOf)['net_income'],
+            'net_income' => $netIncome,
         ];
     }
 }

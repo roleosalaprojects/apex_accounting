@@ -23,9 +23,8 @@ class ChangesInEquity extends ReportPage
 
         $rows = [];
         foreach ($r['rows'] as $x) {
-            $rows[] = [$x['code'].' '.$x['name'], $this->peso($x['opening']), $this->peso($x['movement']), $this->peso($x['closing'])];
+            $rows[] = [trim(($x['code'] ?? '').' '.$x['name']), $this->peso($x['opening']), $this->peso($x['movement']), $this->peso($x['closing'])];
         }
-        $rows[] = ['Profit for the period (per Income Statement; closes to Retained Earnings at year-end)', '', $this->peso($r['net_income']), ''];
 
         return [
             'columns' => ['Equity component', 'Beginning', 'Net change', 'Ending'],

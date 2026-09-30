@@ -15,13 +15,21 @@ use Illuminate\Support\Carbon;
  */
 final class BalanceSheetReport
 {
+    /** Earlier than any posting: "from the beginning". */
+    private const DAWN = '1900-01-01';
+
     public function __construct(
         private readonly ReportBalances $balances,
         private readonly ProfitAndLossReport $pnl,
     ) {}
 
     /**
-     * @return array{assets: array<int, array<string, mixed>>, liabilities: array<int, array<string, mixed>>, equity: array<int, array<string, mixed>>, total_assets: int, total_liabilities: int, total_equity: int, current_year_earnings: int, balanced: bool}
+     * Equity carries two synthetic lines besides the equity accounts: the
+     * current fiscal year's earnings, and the earnings of earlier years that
+     * have not been closed into Retained Earnings yet (nil once every year is
+     * closed, since closing entries zero the nominal accounts).
+     *
+     * @return array{assets: array<int, array<string, mixed>>, liabilities: array<int, array<string, mixed>>, equity: array<int, array<string, mixed>>, total_assets: int, total_liabilities: int, total_equity: int, current_year_earnings: int, prior_years_earnings: int, balanced: bool}
      */
     public function build(Company $company, string $asOf): array
     {
@@ -53,9 +61,16 @@ final class BalanceSheetReport
             };
         }
 
-        $earnings = $this->pnl->build($company->id, $this->fiscalYearStart($company, $asOf), $asOf)['net_income'];
+        $fiscalYearStart = $this->fiscalYearStart($company, $asOf);
+        $earnings = $this->pnl->build($company->id, $fiscalYearStart, $asOf)['net_income'];
         $equity[] = ['account_id' => null, 'code' => null, 'name' => 'Current-year earnings', 'amount' => $earnings];
         $totalEquity += $earnings;
+
+        $priorEarnings = $this->pnl->build($company->id, self::DAWN, Carbon::parse($fiscalYearStart)->subDay()->toDateString())['net_income'];
+        if ($priorEarnings !== 0) {
+            $equity[] = ['account_id' => null, 'code' => null, 'name' => 'Retained earnings — prior years not yet closed', 'amount' => $priorEarnings];
+            $totalEquity += $priorEarnings;
+        }
 
         $byCode = fn ($a, $b) => ($a['code'] ?? 'zzz') <=> ($b['code'] ?? 'zzz');
         usort($assets, $byCode);
@@ -70,6 +85,7 @@ final class BalanceSheetReport
             'total_liabilities' => $totalLiabilities,
             'total_equity' => $totalEquity,
             'current_year_earnings' => $earnings,
+            'prior_years_earnings' => $priorEarnings,
             'balanced' => $totalAssets === $totalLiabilities + $totalEquity,
         ];
     }
