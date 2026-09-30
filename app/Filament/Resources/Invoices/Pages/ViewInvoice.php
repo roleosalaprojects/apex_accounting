@@ -8,6 +8,7 @@ use App\Actions\Receivables\VoidInvoice;
 use App\Enums\InvoiceStatus;
 use App\Filament\Resources\Invoices\InvoiceResource;
 use App\Filament\Support\AttachFilesAction;
+use App\Filament\Support\LoadsRecordRelations;
 use App\Models\Invoice;
 use App\Models\User;
 use App\Services\Printing\PrintInvoice;
@@ -15,19 +16,19 @@ use Filament\Actions\Action;
 use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ViewRecord;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Throwable;
 
 class ViewInvoice extends ViewRecord
 {
+    use LoadsRecordRelations;
+
     protected static string $resource = InvoiceResource::class;
 
-    protected function resolveRecord(int|string $key): Model
+    protected function recordRelations(): array
     {
-        return parent::resolveRecord($key)
-            ->load(['customer', 'lines.taxCode', 'attachments.uploader']);
+        return ['customer', 'lines.taxCode', 'attachments.uploader'];
     }
 
     protected function getHeaderActions(): array

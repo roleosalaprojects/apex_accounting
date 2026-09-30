@@ -9,6 +9,7 @@ use App\Actions\Ledger\ReverseJournalEntry;
 use App\Enums\JournalStatus;
 use App\Filament\Resources\JournalEntries\JournalEntryResource;
 use App\Filament\Support\AttachFilesAction;
+use App\Filament\Support\LoadsRecordRelations;
 use App\Models\JournalEntry;
 use App\Models\User;
 use Filament\Actions\Action;
@@ -16,21 +17,21 @@ use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ViewRecord;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
 use Throwable;
 
 class ViewJournalEntry extends ViewRecord
 {
+    use LoadsRecordRelations;
+
     protected static string $resource = JournalEntryResource::class;
 
-    protected function resolveRecord(int|string $key): Model
+    protected function recordRelations(): array
     {
-        return parent::resolveRecord($key)
-            ->load([
-                'lines.account', 'lines.department', 'lines.project', 'lines.fund', 'lines.branch',
-                'reversalOf', 'reversedBy', 'attachments.uploader',
-            ]);
+        return [
+            'lines.account', 'lines.department', 'lines.project', 'lines.fund', 'lines.branch',
+            'reversalOf', 'reversedBy', 'attachments.uploader',
+        ];
     }
 
     protected function getHeaderActions(): array
