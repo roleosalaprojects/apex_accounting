@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Bills\Pages;
 
+use App\Filament\Resources\Bills\Actions\PayBillAction;
 use App\Filament\Resources\Bills\BillResource;
 use App\Filament\Support\AttachFilesAction;
 use App\Filament\Support\LoadsRecordRelations;
@@ -23,6 +24,7 @@ class ViewBill extends ViewRecord
     protected function getHeaderActions(): array
     {
         return [
+            PayBillAction::make(),
             AttachFilesAction::make(),
         ];
     }

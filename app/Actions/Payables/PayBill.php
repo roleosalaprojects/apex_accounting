@@ -62,6 +62,10 @@ final class PayBill
                 $bill = Bill::query()->withoutGlobalScopes()
                     ->where('company_id', $company->id)->findOrFail($application->bill_id);
 
+                if ($bill->vendor_id !== $vendor->id) {
+                    throw new RuntimeException("Bill {$bill->number} is not from {$vendor->name}.");
+                }
+
                 if ($application->amount > $bill->outstanding()) {
                     throw new RuntimeException("Application exceeds bill {$bill->number} outstanding.");
                 }

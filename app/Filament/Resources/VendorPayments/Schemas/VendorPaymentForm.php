@@ -10,10 +10,13 @@ use App\Models\Account;
 use App\Models\Bill;
 use App\Models\Vendor;
 use App\Models\WithholdingCode;
+use App\Support\Money;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
+use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 
 class VendorPaymentForm
@@ -23,7 +26,7 @@ class VendorPaymentForm
         return $schema->components([
             Select::make('vendor_id')->label('Vendor')
                 ->options(fn () => Vendor::query()->orderBy('name')->pluck('name', 'id'))
-                ->searchable()->required(),
+                ->searchable()->required()->live(),
             DatePicker::make('payment_date')->default(now())->required(),
             Select::make('method')->options(PaymentMethod::class)->default('check')->required(),
             Select::make('paid_from_account_id')->label('Paid from')
@@ -39,9 +42,18 @@ class VendorPaymentForm
                 ->columnSpanFull()->minItems(1)->defaultItems(1)->columns(2)
                 ->schema([
                     Select::make('bill_id')->label('Bill')
-                        ->options(fn () => Bill::query()
-                            ->whereIn('status', ['posted', 'partially_paid'])->get()
-                            ->mapWithKeys(fn (Bill $b) => [$b->id => $b->number.' (bal '.number_format($b->outstanding() / 100, 2).')']))
+                        ->options(fn (Get $get): array => blank($get('../../vendor_id')) ? [] : Bill::query()
+                            ->where('vendor_id', $get('../../vendor_id'))
+                            ->whereIn('status', ['posted', 'partially_paid'])->orderBy('bill_date')->get()
+                            ->mapWithKeys(fn (Bill $b): array => [$b->id => $b->number.' (bal '.number_format($b->outstanding() / 100, 2).')'])->all())
+                        ->placeholder(fn (Get $get): string => blank($get('../../vendor_id')) ? 'Choose the vendor first' : 'Select a bill')
+                        ->live()
+                        ->afterStateUpdated(function (mixed $state, Get $get, Set $set): void {
+                            $bill = filled($state) ? Bill::query()->find((int) $state) : null;
+                            if ($bill !== null && blank($get('amount'))) {
+                                $set('amount', Money::of($bill->outstanding())->toDecimal());
+                            }
+                        })
                         ->searchable()->required(),
                     TextInput::make('amount')->label('Gross amount (P)')->numeric()->required(),
                 ]),
