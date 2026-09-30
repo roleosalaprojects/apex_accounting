@@ -8,6 +8,7 @@ use App\Actions\Assets\PlaceAssetInService;
 use App\Actions\Assets\RunMonthlyDepreciation;
 use App\Actions\Banking\RecordBankCharge;
 use App\Actions\Banking\RecordDeposit;
+use App\Actions\Ledger\CloseFiscalYear;
 use App\Actions\Ledger\OpenFiscalYear;
 use App\Actions\Ledger\PostJournalEntry;
 use App\Actions\Payables\PayBill;
@@ -83,7 +84,7 @@ use RuntimeException;
  */
 final class HistoricalDataSeeder extends Seeder
 {
-    private const START = '2023-10-01';
+    public const START = '2023-10-01';
 
     private const SEED = 20231001;
 
@@ -172,6 +173,12 @@ final class HistoricalDataSeeder extends Seeder
 
             for ($month = CarbonImmutable::parse(self::START); $month->lessThanOrEqualTo($this->today); $month = $month->addMonth()) {
                 $this->runMonth($month);
+
+                // Books close at year-end: earnings go to Retained Earnings and
+                // the year's periods lock, as a real company's would.
+                if ($month->month === 12 && $month->year < $this->today->year) {
+                    app(CloseFiscalYear::class)->handle($this->company, $month->year, $this->actor);
+                }
             }
 
             $this->addBudgets();
@@ -179,6 +186,8 @@ final class HistoricalDataSeeder extends Seeder
             $this->addPosInbox();
             $this->addRecurringTemplates();
         });
+
+        $this->call(DemoOperationsSeeder::class);
 
         foreach ($this->counts() as $label => $count) {
             $this->command->line(sprintf('  %-18s +%d', $label, $count - $before[$label]));
@@ -370,10 +379,14 @@ final class HistoricalDataSeeder extends Seeder
             $this->on(10, 4, fn (CarbonImmutable $d) => $this->remitEwt($d));
         }
 
-        // Quarter close: allocate common input VAT, then remit the VAT due.
+        // Quarter end: allocate common input VAT as the last adjustment of the
+        // quarter (before a December's year-end close); the VAT due is then
+        // remitted on the 25th of the following month.
+        if (in_array($month->month, [3, 6, 9, 12], true)) {
+            $this->on($month->daysInMonth, 9, fn () => $this->allocateInputVat($month->endOfMonth()));
+        }
         if (in_array($month->month, [1, 4, 7, 10], true) && $ym !== '2023-10') {
             $quarterEnd = $month->subDay();
-            $this->on(1, 0, fn () => $this->allocateInputVat($quarterEnd));
             $this->on(25, 4, fn (CarbonImmutable $d) => $this->remitVat($d, $quarterEnd));
         }
 
