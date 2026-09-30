@@ -23,4 +23,10 @@ final class BillPolicy extends PermissionPolicy
     {
         return $this->allowsAll($user, [RbacRegistry::BILL_PAY], $bill);
     }
+
+    /** Reverse a posted bill; the same right as posting one. */
+    public function void(User $user, Bill $record): bool
+    {
+        return $this->allowsAll($user, [RbacRegistry::BILL_POST], $record);
+    }
 }

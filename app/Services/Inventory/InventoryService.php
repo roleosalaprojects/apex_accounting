@@ -79,6 +79,22 @@ final class InventoryService
         return $cogs;
     }
 
+    /**
+     * Undo a receipt (a voided bill): the units leave at the cost they came
+     * in at, so the value moves by exactly what the reversal posts. Refused
+     * when the units are no longer on hand, unless negative stock is allowed.
+     */
+    public function takeBack(Item $item, int $qtyUnits, int $cost, Company $company): ItemValuation
+    {
+        $valuation = $this->valuationFor($item);
+
+        if ($valuation->qty_units - $qtyUnits < 0 && $company->block_negative_inventory) {
+            throw NegativeInventoryException::make("item {$item->sku}: the goods were already sold");
+        }
+
+        return $this->receive($item, -$qtyUnits, -$cost);
+    }
+
     public function currentQtyUnits(Item $item): int
     {
         return $this->valuationFor($item)->qty_units;

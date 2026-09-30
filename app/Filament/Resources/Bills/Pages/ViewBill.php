@@ -4,10 +4,15 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Bills\Pages;
 
+use App\Actions\Payables\VoidBill;
+use App\Enums\InvoiceStatus;
 use App\Filament\Resources\Bills\Actions\PayBillAction;
 use App\Filament\Resources\Bills\BillResource;
 use App\Filament\Support\AttachFilesAction;
 use App\Filament\Support\LoadsRecordRelations;
+use App\Filament\Support\VoidAction;
+use App\Models\Bill;
+use App\Models\User;
 use Filament\Resources\Pages\ViewRecord;
 
 class ViewBill extends ViewRecord
@@ -25,6 +30,11 @@ class ViewBill extends ViewRecord
     {
         return [
             PayBillAction::make(),
+            VoidAction::make(
+                'bill',
+                fn (Bill $bill, string $reason, User $user) => app(VoidBill::class)->handle($bill, $reason, $user),
+                fn (Bill $bill): bool => in_array($bill->status, [InvoiceStatus::Posted, InvoiceStatus::PartiallyPaid, InvoiceStatus::Paid], true),
+            ),
             AttachFilesAction::make(),
         ];
     }
