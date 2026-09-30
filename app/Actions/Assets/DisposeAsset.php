@@ -83,7 +83,7 @@ final class DisposeAsset
                 approved_by: $actor?->id,
             ), $actor);
 
-            $asset->forceFill(['status' => AssetStatus::Disposed, 'disposed_at' => $date])->save();
+            $asset->forceFill(['status' => AssetStatus::Disposed, 'disposed_at' => $date, 'disposal_proceeds' => $proceeds, 'disposal_gain_loss' => $gainLoss])->save();
 
             return $asset;
         });

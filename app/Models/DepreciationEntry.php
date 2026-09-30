@@ -30,6 +30,22 @@ final class DepreciationEntry extends Model
     }
 
     /**
+     * @return BelongsTo<AccountingPeriod, $this>
+     */
+    public function period(): BelongsTo
+    {
+        return $this->belongsTo(AccountingPeriod::class, 'period_id');
+    }
+
+    /**
+     * @return BelongsTo<JournalEntry, $this>
+     */
+    public function journalEntry(): BelongsTo
+    {
+        return $this->belongsTo(JournalEntry::class);
+    }
+
+    /**
      * @return BelongsTo<Asset, $this>
      */
     public function asset(): BelongsTo

@@ -47,6 +47,7 @@ final class RunMonthlyDepreciation
                     ->where('company_id', $company->id)
                     ->where('asset_category_id', $category->id)
                     ->where('status', AssetStatus::InService->value)
+                    ->whereDate('in_service_date', '<=', $period->ends_on)
                     ->get();
 
                 $categoryTotal = 0;

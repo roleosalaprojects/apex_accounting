@@ -7,6 +7,7 @@ namespace App\Models;
 use App\Casts\MoneyCast;
 use App\Enums\AssetStatus;
 use App\Models\Concerns\BelongsToCompany;
+use App\Models\Concerns\HasDimensionRelations;
 use App\Support\Money;
 use Database\Factories\AssetFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -28,10 +29,14 @@ use Illuminate\Support\Carbon;
  * @property int $useful_life_months
  * @property AssetStatus $status
  * @property Carbon|null $in_service_date
+ * @property Carbon|null $disposed_at
+ * @property int|null $disposal_proceeds
+ * @property int|null $disposal_gain_loss
  */
 final class Asset extends Model
 {
     use BelongsToCompany;
+    use HasDimensionRelations;
 
     /** @use HasFactory<AssetFactory> */
     use HasFactory;
