@@ -22,6 +22,8 @@ services:
       DB_CONNECTION: sqlite
       DB_DATABASE: /data/database.sqlite
       PHP_CLI_SERVER_WORKERS: 4
+      # No queue worker in the dev stack: imports and other queued work run inline.
+      QUEUE_CONNECTION: sync
       # Outgoing email lands in Mailpit (http://localhost:8025) instead of the world.
       MAIL_MAILER: smtp
       MAIL_HOST: mailpit

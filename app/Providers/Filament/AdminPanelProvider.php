@@ -57,6 +57,8 @@ class AdminPanelProvider extends PanelProvider
                 SetCompanyContextFromTenant::class,
             ], isPersistent: true)
             ->brandName('Apex Accounting')
+            // The bell: import results, approval requests and the like.
+            ->databaseNotifications()
             ->viteTheme('resources/css/filament/admin/theme.css')
             ->colors([
                 'primary' => Color::Amber,

@@ -6,7 +6,9 @@ namespace App\Filament\Resources\Accounts\Pages;
 
 use App\Actions\Ledger\SetupOpeningBalances;
 use App\Data\Ledger\OpeningBalancesData;
+use App\Filament\Imports\AccountImporter;
 use App\Filament\Resources\Accounts\AccountResource;
+use App\Filament\Support\ImportCsvAction;
 use App\Models\Account;
 use App\Models\Company;
 use App\Models\User;
@@ -81,6 +83,7 @@ class ListAccounts extends ListRecords
                         Notification::make()->danger()->title('Could not post opening balances')->body($e->getMessage())->send();
                     }
                 }),
+            ImportCsvAction::make(AccountImporter::class, 'Import accounts')->visible(fn (): bool => AccountResource::canCreate()),
             CreateAction::make(),
         ];
     }

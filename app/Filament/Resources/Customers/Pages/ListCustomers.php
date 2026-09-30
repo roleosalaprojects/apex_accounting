@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Customers\Pages;
 
+use App\Filament\Imports\CustomerImporter;
 use App\Filament\Resources\Customers\CustomerResource;
+use App\Filament\Support\ImportCsvAction;
 use Filament\Actions\CreateAction;
 use Filament\Resources\Pages\ListRecords;
 
@@ -15,6 +17,7 @@ class ListCustomers extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
+            ImportCsvAction::make(CustomerImporter::class, 'Import customers')->visible(fn (): bool => CustomerResource::canCreate()),
             CreateAction::make(),
         ];
     }
