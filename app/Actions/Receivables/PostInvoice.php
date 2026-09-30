@@ -11,6 +11,7 @@ use App\Data\Receivables\InvoiceData;
 use App\Enums\InvoiceStatus;
 use App\Enums\ItemType;
 use App\Enums\PricingMode;
+use App\Enums\StockMovementKind;
 use App\Exceptions\Ledger\CreditLimitException;
 use App\Models\Account;
 use App\Models\Company;
@@ -20,6 +21,7 @@ use App\Models\Item;
 use App\Models\TaxCode;
 use App\Models\User;
 use App\Services\Inventory\InventoryService;
+use App\Services\Inventory\Movement;
 use App\Services\Numbering\NumberGenerator;
 use App\Services\Tax\TaxValidator;
 use App\Services\Tax\VatMath;
@@ -207,6 +209,7 @@ final class PostInvoice
                     'line_total' => $net,
                     'vat_amount' => $vat,
                     'income_account_id' => $lineData->income_account_id,
+                    'sales_order_line_id' => $lineData->sales_order_line_id,
                 ], $dims),
                 'net' => $net,
                 'vat' => $vat,
@@ -330,7 +333,8 @@ final class PostInvoice
             }
 
             // Kept on the line so a void can put the goods back at this cost.
-            $cogs = $this->inventory->issue($item, Quantity::toUnits($line->qty), $company);
+            $cogs = $this->inventory->issue($item, Quantity::toUnits($line->qty), $company,
+                new Movement($data->invoice_date, StockMovementKind::Issue, $invoice, $invoice->number, $line->description, $invoice->created_by));
             $line->forceFill(['cogs' => $cogs])->save();
             if ($cogs === 0) {
                 continue;

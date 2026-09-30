@@ -17,6 +17,7 @@ final class BillLineData extends Data
         public int $expense_or_asset_account_id,
         public ?VatBucket $vat_bucket = null,
         public ?int $item_id = null,
+        public ?int $purchase_order_line_id = null,
         public ?int $department_id = null,
         public ?int $project_id = null,
         public ?int $fund_id = null,

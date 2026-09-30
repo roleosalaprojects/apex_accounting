@@ -7,6 +7,7 @@ use App\Actions\Payables\PostBill;
 use App\Actions\Receivables\PostInvoice;
 use App\Data\Payables\BillData;
 use App\Data\Receivables\InvoiceData;
+use App\Enums\StockMovementKind;
 use App\Enums\VatBucket;
 use App\Exceptions\Ledger\NegativeInventoryException;
 use App\Models\Customer;
@@ -15,6 +16,7 @@ use App\Models\PeriodBalance;
 use App\Models\TaxCode;
 use App\Models\Vendor;
 use App\Services\Inventory\InventoryService;
+use App\Services\Inventory\Movement;
 use Illuminate\Support\Facades\Artisan;
 
 beforeEach(function () {
@@ -100,8 +102,9 @@ it('recomputes the weighted average across receipts at different costs', functio
     $inv = app(InventoryService::class);
 
     // Receive 100 @ ₱10 then 100 @ ₱20 -> avg ₱15.
-    $inv->receive($this->pos, 100 * 10000, 1_000_00);
-    $inv->receive($this->pos, 100 * 10000, 2_000_00);
+    $count = fn (): Movement => new Movement('2026-06-01', StockMovementKind::Adjustment, null, null, 'opening count');
+    $inv->receive($this->pos, 100 * 10000, 1_000_00, $count());
+    $inv->receive($this->pos, 100 * 10000, 2_000_00, $count());
 
     expect($inv->currentQtyUnits($this->pos))->toBe(200 * 10000)
         ->and($inv->inventoryValue($this->pos))->toBe(3_000_00)

@@ -6,6 +6,7 @@ namespace App\Services\Sales;
 
 use App\Actions\Receivables\PostInvoice;
 use App\Data\Receivables\InvoiceData;
+use App\Enums\InvoiceStatus;
 use App\Models\Delivery;
 use App\Models\Invoice;
 use App\Models\SalesOrder;
@@ -97,6 +98,7 @@ final class SalesOrderService
                     'unit_price' => (int) $picked[0]->unit_price,
                     'tax_code_id' => $picked[0]->tax_code_id,
                     'income_account_id' => $picked[0]->income_account_id,
+                    'sales_order_line_id' => $picked[0]->id,
                 ], $lines),
             ]), $actor);
 
@@ -110,6 +112,33 @@ final class SalesOrderService
 
             return $invoice;
         });
+    }
+
+    /** A voided invoice hands its quantities back to the order it came from. */
+    public function release(Invoice $invoice): void
+    {
+        if ($invoice->sales_order_id === null) {
+            return;
+        }
+        /** @var SalesOrder|null $order */
+        $order = SalesOrder::query()->withoutGlobalScopes()->with('lines')->find($invoice->sales_order_id);
+        if ($order === null) {
+            return;
+        }
+
+        foreach ($invoice->lines()->whereNotNull('sales_order_line_id')->get() as $line) {
+            /** @var SalesOrderLine|null $orderLine */
+            $orderLine = $order->lines->firstWhere('id', $line->sales_order_line_id);
+            if ($orderLine === null) {
+                continue;
+            }
+            $orderLine->forceFill(['invoiced_qty' => Quantity::fromUnits(max(0, Quantity::toUnits($orderLine->invoiced_qty) - Quantity::toUnits($line->qty)))])->save();
+        }
+
+        $order->refresh();
+        $anyInvoiced = $order->lines->contains(fn (SalesOrderLine $line): bool => Quantity::toUnits($line->invoiced_qty) > 0);
+        $latest = $order->invoices()->where('status', '!=', InvoiceStatus::Voided)->orderByDesc('id')->value('id');
+        $order->update(['invoice_id' => $latest, 'status' => $anyInvoiced ? 'partially_invoiced' : 'accepted']);
     }
 
     /** Invoice everything still open on the order. */

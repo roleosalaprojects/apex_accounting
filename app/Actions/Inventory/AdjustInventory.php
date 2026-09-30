@@ -7,11 +7,13 @@ namespace App\Actions\Inventory;
 use App\Actions\Ledger\PostJournalEntry;
 use App\Data\Ledger\JournalEntryData;
 use App\Data\Ledger\JournalLineData;
+use App\Enums\StockMovementKind;
 use App\Models\Company;
 use App\Models\InventoryAdjustment;
 use App\Models\Item;
 use App\Models\User;
 use App\Services\Inventory\InventoryService;
+use App\Services\Inventory\Movement;
 use App\Support\Quantity;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
@@ -50,14 +52,25 @@ final class AdjustInventory
 
             $deltaUnits = Quantity::toUnits($qtyChange);
 
+            $adjustment = InventoryAdjustment::query()->create([
+                'company_id' => $company->id,
+                'item_id' => $item->id,
+                'adjustment_date' => $date,
+                'qty_units_change' => $deltaUnits,
+                'value_change' => 0,
+                'reason' => $reason,
+                'created_by' => $actor?->id,
+            ]);
+            $movement = new Movement($date, StockMovementKind::Adjustment, $adjustment, null, $reason, $actor?->id);
+
             if ($deltaUnits > 0) {
                 $cost = $unitCost !== null
                     ? Quantity::extend($unitCost, $deltaUnits)
                     : $this->inventory->valueAtCurrentAverage($item, $deltaUnits);
-                $this->inventory->receive($item, $deltaUnits, $cost);
+                $this->inventory->receive($item, $deltaUnits, $cost, $movement);
                 $valueChange = $cost;
             } else {
-                $valueChange = -$this->inventory->issue($item, -$deltaUnits, $company);
+                $valueChange = -$this->inventory->issue($item, -$deltaUnits, $company, $movement);
             }
 
             $lines = $valueChange >= 0
@@ -79,16 +92,9 @@ final class AdjustInventory
                 approved_by: $actor?->id,
             ), $actor);
 
-            return InventoryAdjustment::query()->create([
-                'company_id' => $company->id,
-                'item_id' => $item->id,
-                'adjustment_date' => $date,
-                'qty_units_change' => $deltaUnits,
-                'value_change' => $valueChange,
-                'journal_entry_id' => $entry->id,
-                'reason' => $reason,
-                'created_by' => $actor?->id,
-            ]);
+            $adjustment->forceFill(['value_change' => $valueChange, 'journal_entry_id' => $entry->id])->save();
+
+            return $adjustment;
         });
     }
 }

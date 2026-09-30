@@ -23,6 +23,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property Money $vat_amount
  * @property int $income_account_id
  * @property int|null $cogs Cost of sales posted for a stocked item, centavos
+ * @property int|null $sales_order_line_id
  * @property int|null $department_id
  * @property int|null $project_id
  * @property int|null $fund_id

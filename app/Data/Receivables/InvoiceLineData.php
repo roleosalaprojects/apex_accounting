@@ -15,6 +15,7 @@ final class InvoiceLineData extends Data
         public int $tax_code_id,
         public int $income_account_id,
         public ?int $item_id = null,
+        public ?int $sales_order_line_id = null,
         public ?int $department_id = null,
         public ?int $project_id = null,
         public ?int $fund_id = null,

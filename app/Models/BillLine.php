@@ -16,6 +16,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $bill_id
  * @property int $line_no
  * @property int|null $item_id
+ * @property int|null $purchase_order_line_id
  * @property string $description
  * @property string $qty
  * @property Money $unit_price

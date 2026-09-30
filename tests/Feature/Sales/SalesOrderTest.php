@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Actions\Receivables\VoidInvoice;
 use App\Enums\CompanyRole;
 use App\Enums\InvoiceStatus;
 use App\Filament\Resources\SalesOrders\Pages\ListSalesOrders;
@@ -178,4 +179,20 @@ it('delivers and invoices from the order page, then locks the order from editing
         ->and($so->invoices()->sole()->total->minor)->toBe(6 * 1120_00);
 
     Livewire::test(ListSalesOrders::class)->assertSee('6 / 12 · 6 / 12')->assertSee('Partially invoiced');
+});
+
+it('gives the quantities back to the order when an invoice raised from it is voided', function () {
+    $so = makeAcceptedOrder($this);
+    [$rice, $consulting] = $so->lines->all();
+    $service = app(SalesOrderService::class);
+
+    $invoice = $service->invoice($so, [$rice->id => '6'], $this->actor, '2026-03-03');
+    $service->invoice($so->fresh(), [$rice->id => '4', $consulting->id => '2'], $this->actor, '2026-03-10');
+    expect($so->fresh()->status)->toBe('invoiced');
+
+    app(VoidInvoice::class)->handle($invoice, 'Wrong price', $this->actor);
+
+    expect($rice->fresh()->invoiced_qty)->toBe('4.0000')
+        ->and($so->fresh()->status)->toBe('partially_invoiced')
+        ->and($service->suggestedInvoiceQuantities($so->fresh()))->toBe([$rice->id => '6']);
 });

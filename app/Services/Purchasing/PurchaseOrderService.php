@@ -6,6 +6,7 @@ namespace App\Services\Purchasing;
 
 use App\Actions\Payables\PostBill;
 use App\Data\Payables\BillData;
+use App\Enums\InvoiceStatus;
 use App\Models\Bill;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderLine;
@@ -71,6 +72,7 @@ final class PurchaseOrderService
                     'tax_code_id' => $p[0]->tax_code_id,
                     'vat_bucket' => $p[0]->vat_bucket,
                     'expense_or_asset_account_id' => $p[0]->expense_account_id,
+                    'purchase_order_line_id' => $p[0]->id,
                 ], $picked),
             ]), $actor);
 
@@ -84,6 +86,33 @@ final class PurchaseOrderService
 
             return $bill;
         });
+    }
+
+    /** A voided bill hands its quantities back to the order it came from. */
+    public function release(Bill $bill): void
+    {
+        if ($bill->purchase_order_id === null) {
+            return;
+        }
+        /** @var PurchaseOrder|null $order */
+        $order = PurchaseOrder::query()->withoutGlobalScopes()->with('lines')->find($bill->purchase_order_id);
+        if ($order === null) {
+            return;
+        }
+
+        foreach ($bill->lines()->whereNotNull('purchase_order_line_id')->get() as $line) {
+            /** @var PurchaseOrderLine|null $orderLine */
+            $orderLine = $order->lines->firstWhere('id', $line->purchase_order_line_id);
+            if ($orderLine === null) {
+                continue;
+            }
+            $orderLine->forceFill(['billed_qty' => Quantity::fromUnits(max(0, Quantity::toUnits($orderLine->billed_qty) - Quantity::toUnits($line->qty)))])->save();
+        }
+
+        $order->refresh();
+        $anyBilled = $order->lines->contains(fn (PurchaseOrderLine $line): bool => Quantity::toUnits($line->billed_qty) > 0);
+        $latest = $order->bills()->where('status', '!=', InvoiceStatus::Voided)->orderByDesc('id')->value('id');
+        $order->update(['bill_id' => $latest, 'status' => $anyBilled ? 'partially_billed' : 'sent']);
     }
 
     /** Bill everything still open on the order. */

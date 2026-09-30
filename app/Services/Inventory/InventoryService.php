@@ -8,6 +8,7 @@ use App\Exceptions\Ledger\NegativeInventoryException;
 use App\Models\Company;
 use App\Models\Item;
 use App\Models\ItemValuation;
+use App\Models\StockMovement;
 use App\Services\Tax\VatMath;
 
 /**
@@ -32,7 +33,7 @@ final class InventoryService
      * Receive stock: add its cost to the value and recompute the average.
      *   new_avg = (old_value + recv_cost) / (old_qty + recv_qty)
      */
-    public function receive(Item $item, int $recvQtyUnits, int $recvTotalCost): ItemValuation
+    public function receive(Item $item, int $recvQtyUnits, int $recvTotalCost, Movement $movement): ItemValuation
     {
         $valuation = $this->valuationFor($item);
 
@@ -49,6 +50,8 @@ final class InventoryService
             'value' => $newValue,
         ])->save();
 
+        $this->record($item, $recvQtyUnits, $recvTotalCost, $movement);
+
         return $valuation;
     }
 
@@ -56,7 +59,7 @@ final class InventoryService
      * Issue stock at the current weighted average; returns the COGS (centavos).
      * Blocks driving stock negative when the company flag is set (§16, §9).
      */
-    public function issue(Item $item, int $issueQtyUnits, Company $company): int
+    public function issue(Item $item, int $issueQtyUnits, Company $company, Movement $movement): int
     {
         $valuation = $this->valuationFor($item);
 
@@ -76,6 +79,8 @@ final class InventoryService
             'value' => $valuation->value - $cogs,
         ])->save();
 
+        $this->record($item, -$issueQtyUnits, -$cogs, $movement);
+
         return $cogs;
     }
 
@@ -84,7 +89,7 @@ final class InventoryService
      * in at, so the value moves by exactly what the reversal posts. Refused
      * when the units are no longer on hand, unless negative stock is allowed.
      */
-    public function takeBack(Item $item, int $qtyUnits, int $cost, Company $company): ItemValuation
+    public function takeBack(Item $item, int $qtyUnits, int $cost, Company $company, Movement $movement): ItemValuation
     {
         $valuation = $this->valuationFor($item);
 
@@ -92,7 +97,25 @@ final class InventoryService
             throw NegativeInventoryException::make("item {$item->sku}: the goods were already sold");
         }
 
-        return $this->receive($item, -$qtyUnits, -$cost);
+        return $this->receive($item, -$qtyUnits, -$cost, $movement);
+    }
+
+    /** One line of the stock ledger for what just moved. */
+    private function record(Item $item, int $qtyUnits, int $value, Movement $movement): void
+    {
+        StockMovement::query()->create([
+            'company_id' => $item->company_id,
+            'item_id' => $item->id,
+            'moved_on' => $movement->movedOn,
+            'kind' => $movement->kind,
+            'qty_units' => $qtyUnits,
+            'value' => $value,
+            'source_type' => $movement->source?->getMorphClass(),
+            'source_id' => $movement->source?->getKey(),
+            'reference' => $movement->reference,
+            'description' => $movement->description,
+            'created_by' => $movement->actorId,
+        ]);
     }
 
     public function currentQtyUnits(Item $item): int

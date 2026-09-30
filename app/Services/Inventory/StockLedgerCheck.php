@@ -62,4 +62,44 @@ final class StockLedgerCheck
 
         return $differences;
     }
+
+    /**
+     * Items whose stock ledger (the movements) no longer sums to their
+     * valuation: a movement was edited, or stock moved without one.
+     *
+     * @return list<array{item_id: int, sku: string, name: string, ledger_units: int, ledger_value: int, on_hand_units: int, on_hand_value: int}>
+     */
+    public function unreconciledItems(int $companyId): array
+    {
+        $movements = DB::table('stock_movements')
+            ->where('company_id', $companyId)
+            ->groupBy('item_id')
+            ->selectRaw('item_id, SUM(qty_units) as units, SUM(value) as value')
+            ->get()->keyBy('item_id');
+
+        $unreconciled = [];
+        $valuations = DB::table('item_valuations')
+            ->join('items', 'items.id', '=', 'item_valuations.item_id')
+            ->where('item_valuations.company_id', $companyId)
+            ->get(['items.id', 'items.sku', 'items.name', 'item_valuations.qty_units', 'item_valuations.value']);
+
+        foreach ($valuations as $valuation) {
+            $moved = $movements->get($valuation->id);
+            $units = (int) ($moved->units ?? 0);
+            $value = (int) ($moved->value ?? 0);
+            if ($units !== (int) $valuation->qty_units || $value !== (int) $valuation->value) {
+                $unreconciled[] = [
+                    'item_id' => (int) $valuation->id,
+                    'sku' => (string) $valuation->sku,
+                    'name' => (string) $valuation->name,
+                    'ledger_units' => $units,
+                    'ledger_value' => $value,
+                    'on_hand_units' => (int) $valuation->qty_units,
+                    'on_hand_value' => (int) $valuation->value,
+                ];
+            }
+        }
+
+        return $unreconciled;
+    }
 }

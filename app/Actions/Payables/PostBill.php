@@ -12,6 +12,7 @@ use App\Data\Payables\BillLineData;
 use App\Enums\InvoiceStatus;
 use App\Enums\ItemType;
 use App\Enums\PricingMode;
+use App\Enums\StockMovementKind;
 use App\Exceptions\Ledger\InvalidVatBucketException;
 use App\Exceptions\Ledger\InventoryAccountException;
 use App\Models\Account;
@@ -22,6 +23,7 @@ use App\Models\TaxCode;
 use App\Models\User;
 use App\Models\Vendor;
 use App\Services\Inventory\InventoryService;
+use App\Services\Inventory\Movement;
 use App\Services\Numbering\NumberGenerator;
 use App\Services\Tax\InputVatRouter;
 use App\Services\Tax\TaxValidator;
@@ -111,7 +113,7 @@ final class PostBill
                 // An opening bill carries AP forward against 3950; its stock is
                 // already in the opening count, so receiving it would double it.
                 if (! $data->is_opening) {
-                    $this->receiveInventory($line);
+                    $this->receiveInventory($line, $bill, $data);
                 }
             }
 
@@ -203,6 +205,7 @@ final class PostBill
                     'line_total' => $costDebit,
                     'vat_amount' => $vat,
                     'expense_or_asset_account_id' => $accountId,
+                    'purchase_order_line_id' => $lineData->purchase_order_line_id,
                 ], $dims),
                 'item' => $item,
                 'cost_debit' => $costDebit,
@@ -320,7 +323,7 @@ final class PostBill
      *
      * @param  array<string, mixed>  $line
      */
-    private function receiveInventory(array $line): void
+    private function receiveInventory(array $line, Bill $bill, BillData $data): void
     {
         $item = $line['item'];
         if (! $item instanceof Item || $item->type !== ItemType::Inventory) {
@@ -331,6 +334,7 @@ final class PostBill
             $item,
             Quantity::toUnits($line['model']['qty']),
             $line['cost_debit'],
+            new Movement($data->bill_date, StockMovementKind::Receipt, $bill, $bill->number, $line['desc'], $bill->created_by),
         );
     }
 

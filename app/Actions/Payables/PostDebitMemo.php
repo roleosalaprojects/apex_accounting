@@ -11,6 +11,7 @@ use App\Data\Payables\BillLineData;
 use App\Data\Payables\DebitMemoData;
 use App\Enums\ItemType;
 use App\Enums\PricingMode;
+use App\Enums\StockMovementKind;
 use App\Exceptions\Ledger\InvalidVatBucketException;
 use App\Exceptions\Ledger\InventoryAccountException;
 use App\Models\Account;
@@ -21,6 +22,7 @@ use App\Models\TaxCode;
 use App\Models\User;
 use App\Models\Vendor;
 use App\Services\Inventory\InventoryService;
+use App\Services\Inventory\Movement;
 use App\Services\Numbering\NumberGenerator;
 use App\Services\Tax\InputVatRouter;
 use App\Services\Tax\TaxValidator;
@@ -175,7 +177,7 @@ final class PostDebitMemo
             foreach ($lines as $line) {
                 $memo->lines()->create($line['model']);
 
-                $stockValue = $this->returnStock($company, $line);
+                $stockValue = $this->returnStock($company, $line, $memo, $data);
                 if ($stockValue === null) {
                     $jeLines[] = new JournalLineData(
                         account_id: $line['account_id'],
@@ -259,14 +261,15 @@ final class PostDebitMemo
      *
      * @param  array<string, mixed>  $line
      */
-    private function returnStock(Company $company, array $line): ?int
+    private function returnStock(Company $company, array $line, DebitMemo $memo, DebitMemoData $data): ?int
     {
         $item = $line['item'];
         if (! $item instanceof Item || $item->type !== ItemType::Inventory) {
             return null;
         }
 
-        return $this->inventory->issue($item, Quantity::toUnits($line['model']['qty']), $company);
+        return $this->inventory->issue($item, Quantity::toUnits($line['model']['qty']), $company,
+            new Movement($data->memo_date, StockMovementKind::ReturnOut, $memo, $memo->number, $line['desc'], $memo->created_by));
     }
 
     private function account(Company $company, string $code): Account

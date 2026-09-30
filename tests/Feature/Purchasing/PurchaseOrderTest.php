@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Actions\Payables\VoidBill;
 use App\Enums\CompanyRole;
 use App\Enums\InvoiceStatus;
 use App\Filament\Resources\PurchaseOrders\Pages\ListPurchaseOrders;
@@ -94,4 +95,19 @@ it('bills a purchase order in parts, tracking what each bill covered', function 
         ->and($po->fresh()->status)->toBe('billed')
         ->and($po->fresh()->bills()->count())->toBe(2)
         ->and(fn () => $service->convertToBill($po->fresh(), $this->actor))->toThrow(RuntimeException::class);
+});
+
+it('gives the quantities back to the order when a bill raised from it is voided', function () {
+    $po = makePurchaseOrderWithLine($this);
+    $po->lines()->first()->update(['qty' => '10']);
+    $line = $po->fresh()->lines->first();
+    $service = app(PurchaseOrderService::class);
+
+    $bill = $service->bill($po->fresh(), [$line->id => '10'], $this->actor, '2026-03-05');
+    expect($po->fresh()->status)->toBe('billed');
+
+    app(VoidBill::class)->handle($bill, 'Duplicate', $this->actor);
+
+    expect($line->fresh()->billed_qty)->toBe('0.0000')
+        ->and($po->fresh()->status)->toBe('sent');
 });

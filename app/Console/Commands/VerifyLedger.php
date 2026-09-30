@@ -8,6 +8,7 @@ use App\Models\Company;
 use App\Models\PeriodBalance;
 use App\Services\Inventory\StockLedgerCheck;
 use App\Services\Ledger\LedgerBalanceCalculator;
+use App\Support\Quantity;
 use Illuminate\Console\Command;
 
 /**
@@ -43,7 +44,7 @@ final class VerifyLedger extends Command
         }
 
         if ($ok) {
-            $this->info('ledger:verify passed — period_balances match journal_lines, the trial balance ties out and stock equals its inventory accounts.');
+            $this->info('ledger:verify passed — period_balances match journal_lines, the trial balance ties out and stock equals its inventory accounts and its movements.');
 
             return self::SUCCESS;
         }
@@ -126,6 +127,20 @@ final class VerifyLedger extends Command
                 number_format($difference['ledger'] / 100, 2),
                 number_format($difference['stock'] / 100, 2),
                 number_format(($difference['ledger'] - $difference['stock']) / 100, 2),
+            ));
+            $ok = false;
+        }
+
+        foreach ($stock->unreconciledItems($company->id) as $item) {
+            $this->error(sprintf(
+                '[%s] stock ledger does not sum to the valuation of %s %s: movements %s units / %s, on hand %s units / %s.',
+                $company->name,
+                $item['sku'],
+                $item['name'],
+                Quantity::compact($item['ledger_units']),
+                number_format($item['ledger_value'] / 100, 2),
+                Quantity::compact($item['on_hand_units']),
+                number_format($item['on_hand_value'] / 100, 2),
             ));
             $ok = false;
         }
