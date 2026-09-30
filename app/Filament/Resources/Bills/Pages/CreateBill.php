@@ -8,6 +8,7 @@ use App\Actions\Payables\PostBill;
 use App\Data\Payables\BillData;
 use App\Exceptions\Ledger\LedgerException;
 use App\Filament\Resources\Bills\BillResource;
+use App\Filament\Support\DimensionSelects;
 use App\Models\Company;
 use App\Models\User;
 use App\Support\Currencies;
@@ -48,7 +49,7 @@ class CreateBill extends CreateRecord
             'tax_code_id' => (int) $line['tax_code_id'],
             'vat_bucket' => $line['vat_bucket'] ?? null,
             'expense_or_asset_account_id' => (int) $line['expense_or_asset_account_id'],
-        ], $data['lines']);
+        ] + DimensionSelects::ids($line), $data['lines']);
 
         try {
             $bill = app(PostBill::class)->handle(BillData::from([
@@ -59,12 +60,8 @@ class CreateBill extends CreateRecord
                 'pricing_mode' => $data['pricing_mode'],
                 'external_reference_no' => $data['external_reference_no'] ?? null,
                 'memo' => $data['memo'] ?? null,
-                'department_id' => filled($data['department_id'] ?? null) ? (int) $data['department_id'] : null,
-                'project_id' => filled($data['project_id'] ?? null) ? (int) $data['project_id'] : null,
-                'fund_id' => filled($data['fund_id'] ?? null) ? (int) $data['fund_id'] : null,
-                'branch_id' => filled($data['branch_id'] ?? null) ? (int) $data['branch_id'] : null,
                 'lines' => $lines,
-            ]), $actor);
+            ] + DimensionSelects::ids($data)), $actor);
 
             if ($currency !== Currencies::FUNCTIONAL) {
                 $bill->update([

@@ -8,6 +8,7 @@ use App\Actions\Receivables\PostInvoice;
 use App\Data\Receivables\InvoiceData;
 use App\Exceptions\Ledger\LedgerException;
 use App\Filament\Resources\Invoices\InvoiceResource;
+use App\Filament\Support\DimensionSelects;
 use App\Models\Company;
 use App\Models\User;
 use App\Support\Currencies;
@@ -47,7 +48,7 @@ class CreateInvoice extends CreateRecord
             'unit_price' => (int) round(((float) $line['unit_price']) * 100 * $rate),
             'tax_code_id' => (int) $line['tax_code_id'],
             'income_account_id' => (int) $line['income_account_id'],
-        ], $data['lines']);
+        ] + DimensionSelects::ids($line), $data['lines']);
 
         try {
             $invoice = app(PostInvoice::class)->handle(InvoiceData::from([
@@ -57,12 +58,8 @@ class CreateInvoice extends CreateRecord
                 'due_date' => $data['due_date'] ?? null,
                 'pricing_mode' => $data['pricing_mode'],
                 'memo' => $data['memo'] ?? null,
-                'department_id' => filled($data['department_id'] ?? null) ? (int) $data['department_id'] : null,
-                'project_id' => filled($data['project_id'] ?? null) ? (int) $data['project_id'] : null,
-                'fund_id' => filled($data['fund_id'] ?? null) ? (int) $data['fund_id'] : null,
-                'branch_id' => filled($data['branch_id'] ?? null) ? (int) $data['branch_id'] : null,
                 'lines' => $lines,
-            ]), $actor);
+            ] + DimensionSelects::ids($data)), $actor);
 
             if ($currency !== Currencies::FUNCTIONAL) {
                 $invoice->update([

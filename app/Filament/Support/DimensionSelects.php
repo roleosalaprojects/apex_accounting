@@ -44,6 +44,61 @@ final class DimensionSelects
         return $selects;
     }
 
+    /**
+     * The four pickers again, for one line of a document: shown only when the
+     * company has defined any dimension, and blank means "as the header".
+     *
+     * @return list<Select>
+     */
+    public static function lineSelects(): array
+    {
+        $selects = [];
+        foreach (self::make() as $select) {
+            $selects[] = $select
+                ->placeholder('As header')
+                ->visible(fn (): bool => self::anyDefined())
+                ->columnSpan(3);
+        }
+
+        return $selects;
+    }
+
+    /** Whether the company has any active dimension to pick from (looked up once per request). */
+    public static function anyDefined(): bool
+    {
+        return once(fn (): bool => collect(self::DIMENSIONS)
+            ->contains(fn (array $dimension): bool => $dimension[1]::query()->where('is_active', true)->exists()));
+    }
+
+    /**
+     * The dimension ids a form (or one of its lines) chose, blank as null.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array{department_id: int|null, project_id: int|null, fund_id: int|null, branch_id: int|null}
+     */
+    public static function ids(array $data): array
+    {
+        $ids = [];
+        foreach (array_keys(self::DIMENSIONS) as $field) {
+            $ids[$field] = filled($data[$field] ?? null) ? (int) $data[$field] : null;
+        }
+
+        return $ids;
+    }
+
+    /** "SALES · BOTIKA-25": the codes tagged on a line, for lists and view pages. */
+    public static function codes(Model $line): ?string
+    {
+        $codes = [];
+        foreach (self::DIMENSIONS as $field => [$label, $model, $relation]) {
+            if ($line->getAttribute($field) !== null) {
+                $codes[] = $line->getRelation($relation)?->getAttribute('code') ?? "#{$line->getAttribute($field)}";
+            }
+        }
+
+        return $codes === [] ? null : implode(' · ', $codes);
+    }
+
     /** The form section: collapsed unless a tag is set. */
     public static function section(): Section
     {

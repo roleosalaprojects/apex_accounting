@@ -7,6 +7,7 @@ namespace App\Filament\Resources\Bills\Schemas;
 use App\Filament\Support\AttachmentsSection;
 use App\Filament\Support\DimensionSelects;
 use App\Filament\Support\Peso;
+use App\Models\BillLine;
 use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Section;
@@ -28,13 +29,15 @@ class BillInfolist
             ]),
             DimensionSelects::infolistSection(),
             Section::make('Lines')->schema([
-                RepeatableEntry::make('lines')->hiddenLabel()->columns(6)->schema([
+                RepeatableEntry::make('lines')->hiddenLabel()->columns(7)->schema([
                     TextEntry::make('description'),
                     TextEntry::make('qty')->label('Qty'),
                     TextEntry::make('unit_price')->label('Unit price')->formatStateUsing(fn ($state) => Peso::format($state)),
                     TextEntry::make('vat_bucket')->label('VAT bucket')->placeholder('—'),
                     TextEntry::make('line_total')->label('Line total')->formatStateUsing(fn ($state) => Peso::format($state)),
                     TextEntry::make('vat_amount')->label('VAT')->formatStateUsing(fn ($state) => Peso::format($state)),
+                    TextEntry::make('tags')->label('Tags')->placeholder('—')
+                        ->state(fn (BillLine $line): ?string => DimensionSelects::codes($line)),
                 ]),
             ]),
             Section::make('Totals')->columns(4)->schema([

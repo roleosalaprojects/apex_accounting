@@ -6,6 +6,7 @@ namespace App\Models;
 
 use App\Casts\MoneyCast;
 use App\Enums\VatBucket;
+use App\Models\Concerns\HasDimensionRelations;
 use App\Support\Money;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -26,6 +27,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 final class BillLine extends Model
 {
+    use HasDimensionRelations;
+
     protected $guarded = [];
 
     protected function casts(): array

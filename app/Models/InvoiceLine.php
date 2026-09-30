@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Casts\MoneyCast;
+use App\Models\Concerns\HasDimensionRelations;
 use App\Support\Money;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -29,6 +30,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 final class InvoiceLine extends Model
 {
+    use HasDimensionRelations;
+
     protected $guarded = [];
 
     protected function casts(): array

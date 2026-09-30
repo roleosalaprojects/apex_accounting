@@ -95,6 +95,7 @@ class InvoiceForm
                                 ->get()
                                 ->mapWithKeys(fn (Account $a) => [$a->id => "{$a->code} — {$a->name}"]))
                             ->required()->columnSpan(12)->searchable(),
+                        ...DimensionSelects::lineSelects(),
                     ]),
             ]);
     }

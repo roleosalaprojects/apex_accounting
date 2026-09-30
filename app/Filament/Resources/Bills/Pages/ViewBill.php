@@ -25,7 +25,7 @@ class ViewBill extends ViewRecord
 
     protected function recordRelations(): array
     {
-        return ['vendor', 'lines', 'attachments.uploader', 'department', 'project', 'fund', 'branch'];
+        return ['vendor', 'lines.department', 'lines.project', 'lines.fund', 'lines.branch', 'attachments.uploader', 'department', 'project', 'fund', 'branch'];
     }
 
     protected function getHeaderActions(): array

@@ -103,6 +103,7 @@ class BillForm
                             ->dehydrated()
                             ->helperText(fn (Get $get): ?string => PurchaseLineDefaults::locksAccount($get('item_id')) ? 'Stocked items are costed to their inventory account.' : null)
                             ->required()->columnSpan(6),
+                        ...DimensionSelects::lineSelects(),
                     ]),
             ]);
     }
