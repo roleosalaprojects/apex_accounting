@@ -888,8 +888,16 @@ final class HistoricalDataSeeder extends Seeder
         $service = app(TaxReturnService::class);
 
         for ($quarterEnd = CarbonImmutable::parse('2023-12-31'); $quarterEnd->lessThan($this->today); $quarterEnd = $quarterEnd->addMonthsNoOverflow(3)->endOfMonth()) {
+            foreach ([$quarterEnd->subMonthsNoOverflow(2), $quarterEnd->subMonthsNoOverflow(1)] as $month) {
+                if ($month->endOfMonth()->lessThan($this->today) && $month->greaterThanOrEqualTo(CarbonImmutable::parse(self::START))) {
+                    $service->prepare($this->company, TaxReturnType::Ewt0619E, $month->year, null, $this->actor?->id, month: $month->month);
+                }
+            }
             foreach ([TaxReturnType::Vat2550Q, TaxReturnType::Ewt1601EQ] as $type) {
                 $service->prepare($this->company, $type, $quarterEnd->year, $quarterEnd->quarter, $this->actor?->id);
+            }
+            if ($quarterEnd->month === 12) {
+                $service->prepare($this->company, TaxReturnType::Ewt1604E, $quarterEnd->year, null, $this->actor?->id);
             }
         }
     }

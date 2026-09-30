@@ -20,13 +20,13 @@ final class AlphalistExporter
 {
     public function __construct(private readonly EwtSummaryReport $ewt) {}
 
-    public function ewt(Company $company, string $from, string $to): string
+    public function ewt(Company $company, string $from, string $to, string $form = 'QAP'): string
     {
         $data = $this->ewt->build($company->id, $from, $to);
         $peso = static fn (int $minor): string => number_format($minor / 100, 2, '.', '');
 
         $lines = [];
-        $lines[] = implode('|', ['H', 'QAP', $company->tin ?? '', $company->branch_code, $company->name, $from, $to]);
+        $lines[] = implode('|', ['H', $form, $company->tin ?? '', $company->branch_code, $company->name, $from, $to]);
 
         foreach ($data['rows'] as $r) {
             $lines[] = implode('|', [

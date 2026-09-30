@@ -28,14 +28,17 @@ class CreateTaxReturn extends CreateRecord
         $company = Filament::getTenant();
         $type = TaxReturnType::from($data['type']);
         $fiscalYear = (int) $data['fiscal_year'];
-        $quarter = (int) $data['quarter'];
+        $quarter = $type->period() === 'quarter' ? (int) $data['quarter'] : null;
+        $month = $type->period() === 'month' ? (int) $data['month'] : null;
+        unset($data['month']);
 
         $service = app(TaxReturnService::class);
-        ['from' => $from, 'to' => $to] = $service->quarterRange($company, $fiscalYear, $quarter);
+        ['from' => $from, 'to' => $to] = $service->periodRange($company, $type, $fiscalYear, $quarter, $month);
 
+        $data['quarter'] = $quarter;
         $data['period_start'] = $from;
         $data['period_end'] = $to;
-        $data['figures'] = $service->compute($company, $type, $fiscalYear, $quarter);
+        $data['figures'] = $service->compute($company, $type, $fiscalYear, $quarter, $month);
         $data['status'] = 'draft';
         $data['created_by'] = Auth::id();
 

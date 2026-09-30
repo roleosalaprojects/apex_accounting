@@ -12,6 +12,7 @@ use App\Services\Reports\ProfitAndLossReport;
 use App\Services\Reports\SalesBook;
 use App\Services\Reports\VatSummaryReport;
 use Illuminate\Support\Carbon;
+use InvalidArgumentException;
 
 /**
  * Prepares and persists BIR return filings (§12). Figures are computed by the
@@ -44,19 +45,99 @@ final class TaxReturnService
     }
 
     /**
+     * The calendar dates of one month of a fiscal year. The 0619-E covers the
+     * first two months of each quarter only; the third month's EWT goes on
+     * the 1601-EQ.
+     *
+     * @return array{from: string, to: string}
+     */
+    public function monthRange(Company $company, int $fiscalYear, int $month): array
+    {
+        $offset = ($month - $company->fiscal_year_start_month + 12) % 12;
+        if ($offset % 3 === 2) {
+            throw new InvalidArgumentException('The third month of a quarter is reported on the 1601-EQ, not a 0619-E.');
+        }
+
+        $start = Carbon::create($fiscalYear, $company->fiscal_year_start_month, 1)->startOfDay()->addMonthsNoOverflow($offset);
+
+        return ['from' => $start->toDateString(), 'to' => $start->copy()->endOfMonth()->toDateString()];
+    }
+
+    /**
+     * The calendar dates a return covers: its month, its quarter, or the
+     * whole fiscal year.
+     *
+     * @return array{from: string, to: string}
+     */
+    public function periodRange(Company $company, TaxReturnType $type, int $fiscalYear, ?int $quarter, ?int $month): array
+    {
+        return match ($type->period()) {
+            'month' => $this->monthRange($company, $fiscalYear, $month ?? throw new InvalidArgumentException('A monthly return needs its month.')),
+            'year' => ['from' => $this->quarterRange($company, $fiscalYear, 1)['from'], 'to' => $this->quarterRange($company, $fiscalYear, 4)['to']],
+            default => $this->quarterRange($company, $fiscalYear, $quarter ?? throw new InvalidArgumentException('A quarterly return needs its quarter.')),
+        };
+    }
+
+    /**
      * @return array<string, mixed>
      */
-    public function compute(Company $company, TaxReturnType $type, int $fiscalYear, int $quarter): array
+    public function compute(Company $company, TaxReturnType $type, int $fiscalYear, ?int $quarter, ?int $month = null): array
     {
-        ['from' => $from, 'to' => $to] = $this->quarterRange($company, $fiscalYear, $quarter);
+        ['from' => $from, 'to' => $to] = $this->periodRange($company, $type, $fiscalYear, $quarter, $month);
 
         return match ($type) {
-            TaxReturnType::Vat2550Q => $this->vat->build($company->id, $fiscalYear, $quarter, $from, $to),
-            TaxReturnType::Ewt1601EQ => $this->ewt->build($company->id, $from, $to),
+            TaxReturnType::Vat2550Q => $this->vat->build($company->id, $fiscalYear, (int) $quarter, $from, $to),
+            TaxReturnType::Ewt0619E => $this->ewt->build($company->id, $from, $to),
+            TaxReturnType::Ewt1601EQ => $this->quarterlyWithholding($company->id, $from, $to),
+            TaxReturnType::Ewt1604E => $this->annualWithholding($company->id, $from, $to),
             TaxReturnType::Pct2551Q => $this->percentageTax($company->id, $from, $to),
-            TaxReturnType::IncomeTax1702Q => $this->incomeTax($company, $fiscalYear, $quarter),
-            TaxReturnType::IncomeTax1701Q => $this->individualIncomeTax($company, $fiscalYear, $quarter),
+            TaxReturnType::IncomeTax1702Q => $this->incomeTax($company, $fiscalYear, (int) $quarter),
+            TaxReturnType::IncomeTax1701Q => $this->individualIncomeTax($company, $fiscalYear, (int) $quarter),
         };
+    }
+
+    /**
+     * 1601-EQ: the quarter's expanded withholding, less what the two 0619-Es
+     * of its first two months already remitted; the rest is due with it.
+     *
+     * @return array<string, mixed>
+     */
+    private function quarterlyWithholding(int $companyId, string $from, string $to): array
+    {
+        $figures = $this->ewt->build($companyId, $from, $to);
+        $secondMonthEnd = Carbon::parse($from)->addMonthNoOverflow()->endOfMonth()->toDateString();
+        $remitted = (int) $this->ewt->build($companyId, $from, $secondMonthEnd)['total_ewt'];
+
+        return $figures + ['remitted_0619e' => $remitted, 'tax_due' => (int) $figures['total_ewt'] - $remitted];
+    }
+
+    /**
+     * 1604-E: the year's expanded withholding, by ATC and in total, with the
+     * number of payees on the alphalist.
+     *
+     * @return array{by_atc: list<array{atc: string, rate_bp: int, base: int, ewt: int}>, payees: int, total_base: int, total_ewt: int}
+     */
+    private function annualWithholding(int $companyId, string $from, string $to): array
+    {
+        $summary = $this->ewt->build($companyId, $from, $to);
+
+        $byAtc = [];
+        $payees = [];
+        foreach ($summary['rows'] as $row) {
+            $atc = (string) $row['atc'];
+            $byAtc[$atc] ??= ['atc' => $atc, 'rate_bp' => (int) $row['rate_bp'], 'base' => 0, 'ewt' => 0];
+            $byAtc[$atc]['base'] += (int) $row['base'];
+            $byAtc[$atc]['ewt'] += (int) $row['ewt'];
+            $payees[(string) ($row['tin'] ?? $row['vendor'])] = true;
+        }
+        ksort($byAtc);
+
+        return [
+            'by_atc' => array_values($byAtc),
+            'payees' => count($payees),
+            'total_base' => $summary['total_base'],
+            'total_ewt' => $summary['total_ewt'],
+        ];
     }
 
     /**
@@ -134,18 +215,18 @@ final class TaxReturnService
         ];
     }
 
-    public function prepare(Company $company, TaxReturnType $type, int $fiscalYear, int $quarter, ?int $userId): TaxReturn
+    public function prepare(Company $company, TaxReturnType $type, int $fiscalYear, ?int $quarter, ?int $userId, ?int $month = null): TaxReturn
     {
-        ['from' => $from, 'to' => $to] = $this->quarterRange($company, $fiscalYear, $quarter);
+        ['from' => $from, 'to' => $to] = $this->periodRange($company, $type, $fiscalYear, $quarter, $month);
 
         return TaxReturn::query()->create([
             'company_id' => $company->id,
             'type' => $type->value,
             'fiscal_year' => $fiscalYear,
-            'quarter' => $quarter,
+            'quarter' => $type->period() === 'quarter' ? $quarter : null,
             'period_start' => $from,
             'period_end' => $to,
-            'figures' => $this->compute($company, $type, $fiscalYear, $quarter),
+            'figures' => $this->compute($company, $type, $fiscalYear, $quarter, $month),
             'status' => 'draft',
             'created_by' => $userId,
         ]);
