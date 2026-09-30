@@ -11,6 +11,7 @@ use App\Data\Receivables\InvoiceData;
 use App\Enums\InvoiceStatus;
 use App\Enums\ItemType;
 use App\Enums\PricingMode;
+use App\Exceptions\Ledger\CreditLimitException;
 use App\Models\Account;
 use App\Models\Company;
 use App\Models\Customer;
@@ -68,6 +69,10 @@ final class PostInvoice
 
             $computed = $this->computeLines($company, $data, $taxCodes);
 
+            if (! $data->is_opening) {
+                $this->assertWithinCreditLimit($customer, $computed['totals']['total']);
+            }
+
             $dueDate = $data->due_date
                 ?? Carbon::parse($data->invoice_date)->addDays($customer->terms_days)->toDateString();
 
@@ -115,6 +120,27 @@ final class PostInvoice
 
             return $invoice->load('lines');
         });
+    }
+
+    /**
+     * A customer with a credit limit may not owe more than it: what is still
+     * open on their posted invoices plus this one must fit under the limit.
+     */
+    private function assertWithinCreditLimit(Customer $customer, int $invoiceTotal): void
+    {
+        $limit = $customer->credit_limit->minor ?? 0;
+        if ($limit <= 0) {
+            return;
+        }
+
+        $outstanding = Invoice::query()->withoutGlobalScopes()
+            ->where('company_id', $customer->company_id)->where('customer_id', $customer->id)
+            ->whereIn('status', [InvoiceStatus::Posted, InvoiceStatus::PartiallyPaid])
+            ->get()->sum(fn (Invoice $invoice): int => $invoice->outstanding());
+
+        if ($outstanding + $invoiceTotal > $limit) {
+            throw CreditLimitException::make($customer->name, $outstanding, $limit, $invoiceTotal);
+        }
     }
 
     /**

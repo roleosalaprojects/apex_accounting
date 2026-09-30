@@ -12,6 +12,7 @@ use App\Data\Receivables\InvoiceData;
 use App\Enums\InvoiceStatus;
 use App\Enums\ItemType;
 use App\Enums\JournalStatus;
+use App\Exceptions\Ledger\CreditLimitException;
 use App\Models\Customer;
 use App\Models\Department;
 use App\Models\Item;
@@ -179,4 +180,31 @@ it('voiding an invoice puts stocked goods back and reverses their cost of sales'
         ->and($balance('5100'))->toBe(0)
         ->and($balance('4100'))->toBe(0)
         ->and(Artisan::call('ledger:verify', ['company' => $this->company->id]))->toBe(0);
+});
+
+it('refuses an invoice that would push the customer past their credit limit', function () {
+    $this->customer->update(['credit_limit' => 100_000_00]);
+    $rice = fn (int $pesos) => invoiceData(['lines' => [[
+        'description' => 'Rice', 'qty' => '1', 'unit_price' => $pesos * 100,
+        'tax_code_id' => $this->exempt, 'income_account_id' => account($this->company, '4100')->id,
+    ]]]);
+
+    $first = app(PostInvoice::class)->handle($rice(60_000));
+
+    // 60,000 outstanding + 50,000 would be 110,000 against a 100,000 limit.
+    expect(fn () => app(PostInvoice::class)->handle($rice(50_000)))
+        ->toThrow(CreditLimitException::class, 'exceed')
+        ->and(fn () => app(PostInvoice::class)->handle($rice(40_000)))->not->toThrow(CreditLimitException::class);
+
+    // Collecting the first invoice frees the limit; voided and paid invoices don't count.
+    app(ReceiveCustomerPayment::class)->handle(CustomerPaymentData::from([
+        'company_id' => $this->company->id, 'customer_id' => $this->customer->id, 'payment_date' => '2026-06-12',
+        'deposit_to_account_id' => account($this->company, '1120')->id, 'amount' => 60_000_00,
+        'applications' => [['invoice_id' => $first->id, 'amount' => 60_000_00]],
+    ]));
+    expect(fn () => app(PostInvoice::class)->handle($rice(50_000)))->not->toThrow(CreditLimitException::class);
+
+    // No limit set means no check at all.
+    $this->customer->update(['credit_limit' => null]);
+    expect(fn () => app(PostInvoice::class)->handle($rice(500_000)))->not->toThrow(CreditLimitException::class);
 });
