@@ -7,6 +7,7 @@ namespace App\Actions\Ledger;
 use App\Data\Ledger\JournalEntryData;
 use App\Data\Ledger\JournalLineData;
 use App\Enums\JournalStatus;
+use App\Events\Ledger\DraftJournalEntryPosted;
 use App\Exceptions\Ledger\ImmutableEntryException;
 use App\Models\JournalEntry;
 use App\Models\JournalLine;
@@ -61,6 +62,8 @@ final class PostDraftJournalEntry
                 approved_by: $actor?->id,
                 created_by: $draft->created_by,
             ), $actor);
+
+            DraftJournalEntryPosted::dispatch($draft, $posted);
 
             $draft->lines()->delete();
             $draft->delete();

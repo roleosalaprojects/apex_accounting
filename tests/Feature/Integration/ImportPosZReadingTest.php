@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 use App\Actions\Integration\ImportPosZReading;
+use App\Actions\Ledger\PostDraftJournalEntry;
+use App\Actions\Ledger\ReverseJournalEntry;
 use App\Enums\CompanyRole;
 use App\Enums\JournalStatus;
 use App\Enums\PosZReadingStatus;
@@ -62,4 +64,31 @@ it('refuses to import the same Z-reading twice', function () {
 
     // Only one draft was ever created.
     expect(JournalEntry::query()->count())->toBe(1);
+});
+
+it('keeps the reading linked to the entry once the draft is posted', function () {
+    $reading = pendingReading($this->company->id);
+    $draft = app(ImportPosZReading::class)->handle($reading, $this->user);
+
+    $posted = app(PostDraftJournalEntry::class)->handle($draft, $this->user);
+
+    expect($reading->fresh()->journal_entry_id)->toBe($posted->id)
+        ->and($reading->fresh()->status)->toBe(PosZReadingStatus::Imported);
+});
+
+it('returns the reading to the inbox when its entry is reversed', function () {
+    $reading = pendingReading($this->company->id);
+    $posted = app(PostDraftJournalEntry::class)->handle(app(ImportPosZReading::class)->handle($reading, $this->user), $this->user);
+
+    app(ReverseJournalEntry::class)->handle($posted, 'Wrong day', null, $this->user);
+
+    $reading->refresh();
+    expect($reading->status)->toBe(PosZReadingStatus::Pending)
+        ->and($reading->journal_entry_id)->toBeNull()
+        ->and($reading->imported_at)->toBeNull();
+
+    // …and can be imported again.
+    $again = app(ImportPosZReading::class)->handle($reading, $this->user);
+    expect($again->status)->toBe(JournalStatus::Draft)
+        ->and($reading->fresh()->journal_entry_id)->toBe($again->id);
 });

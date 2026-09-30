@@ -8,6 +8,7 @@ use App\Data\Ledger\JournalEntryData;
 use App\Data\Ledger\JournalLineData;
 use App\Enums\JournalStatus;
 use App\Enums\PeriodStatus;
+use App\Events\Ledger\JournalEntryReversed;
 use App\Exceptions\Ledger\ImmutableEntryException;
 use App\Models\AccountingPeriod;
 use App\Models\JournalEntry;
@@ -99,6 +100,8 @@ final class ReverseJournalEntry
                 ['reversed_by' => $reversing->number],
                 $reason,
             );
+
+            JournalEntryReversed::dispatch($entry, $reversing);
 
             return $reversing;
         });
