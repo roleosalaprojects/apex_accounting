@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Filament\Resources\PurchaseOrders\Tables;
 
 use App\Filament\Resources\Bills\BillResource;
+use App\Filament\Support\PrintAction;
 use App\Models\PurchaseOrder;
+use App\Services\Printing\PrintOrder;
 use App\Services\Purchasing\PurchaseOrderService;
 use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
@@ -24,7 +26,7 @@ class PurchaseOrdersTable
     {
         return $table
             ->columns([
-                TextColumn::make('id')->label('PO #')->prefix('PO-')->sortable(),
+                TextColumn::make('number')->label('PO #')->searchable()->sortable(),
                 TextColumn::make('vendor.name')->searchable()->sortable(),
                 TextColumn::make('order_date')->date()->sortable(),
                 TextColumn::make('subtotal')->label('Subtotal')->alignEnd()
@@ -46,6 +48,9 @@ class PurchaseOrdersTable
                 ]),
             ])
             ->recordActions([
+                PrintAction::make('pdf', 'PDF',
+                    fn (PurchaseOrder $order): string => app(PrintOrder::class)->purchaseOrder($order),
+                    fn (PurchaseOrder $order): string => ($order->number ?? "PO-{$order->id}").'.pdf'),
                 Action::make('convert')
                     ->label('Convert to Bill')->icon('heroicon-o-document-plus')->color('success')
                     ->authorize('convertToBill')

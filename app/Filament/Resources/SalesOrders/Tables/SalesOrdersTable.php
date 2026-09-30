@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Filament\Resources\SalesOrders\Tables;
 
 use App\Filament\Resources\Invoices\InvoiceResource;
+use App\Filament\Support\PrintAction;
 use App\Models\SalesOrder;
+use App\Services\Printing\PrintOrder;
 use App\Services\Sales\SalesOrderService;
 use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
@@ -24,7 +26,7 @@ class SalesOrdersTable
     {
         return $table
             ->columns([
-                TextColumn::make('id')->label('SO #')->prefix('SO-')->sortable(),
+                TextColumn::make('number')->label('SO #')->searchable()->sortable(),
                 TextColumn::make('customer.name')->searchable()->sortable(),
                 TextColumn::make('order_date')->date()->sortable(),
                 TextColumn::make('subtotal')->label('Subtotal')->alignEnd()
@@ -46,6 +48,9 @@ class SalesOrdersTable
                 ]),
             ])
             ->recordActions([
+                PrintAction::make('pdf', 'PDF',
+                    fn (SalesOrder $order): string => app(PrintOrder::class)->salesOrder($order),
+                    fn (SalesOrder $order): string => ($order->number ?? "SO-{$order->id}").'.pdf'),
                 Action::make('convert')
                     ->label('Convert to Invoice')->icon('heroicon-o-document-plus')->color('success')
                     ->authorize('convertToInvoice')

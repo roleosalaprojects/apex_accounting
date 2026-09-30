@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Models\Concerns\BelongsToCompany;
+use App\Models\Concerns\HasCreator;
 use Database\Factories\PurchaseOrderFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -19,6 +20,7 @@ use Illuminate\Support\Carbon;
  *
  * @property int $id
  * @property int $company_id
+ * @property string|null $number
  * @property int $vendor_id
  * @property Carbon $order_date
  * @property Carbon|null $expected_date
@@ -30,6 +32,7 @@ use Illuminate\Support\Carbon;
 final class PurchaseOrder extends Model
 {
     use BelongsToCompany;
+    use HasCreator;
 
     /** @use HasFactory<PurchaseOrderFactory> */
     use HasFactory;

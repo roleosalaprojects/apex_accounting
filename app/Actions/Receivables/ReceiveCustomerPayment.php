@@ -66,7 +66,9 @@ final class ReceiveCustomerPayment
                 'amount' => $data->amount,
                 'ewt_withheld' => $data->ewt_withheld,
                 'status' => 'posted',
-                'collection_receipt_no' => $data->collection_receipt_no,
+                // The receipt number: a pre-printed one if given, else the next in the CR series.
+                'collection_receipt_no' => $data->collection_receipt_no
+                    ?? $this->numbers->next($company->id, 'collection_receipt', Carbon::parse($data->payment_date)->year),
                 'reference_no' => $data->reference_no,
                 'external_reference_no' => $data->external_reference_no,
                 'remarks' => $data->remarks,

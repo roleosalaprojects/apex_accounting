@@ -84,6 +84,8 @@ final class SetupNewCompany
         'recurring_run' => ['RUN', 6],
         'collection_receipt' => ['CR', 6],
         'payment_voucher' => ['PV', 6],
+        'purchase_order' => ['PO', 6],
+        'sales_order' => ['SO', 6],
     ];
 
     /**
