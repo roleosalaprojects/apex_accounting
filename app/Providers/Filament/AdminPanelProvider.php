@@ -8,6 +8,7 @@ use App\Filament\Pages\Tenancy\EditCompanyProfile;
 use App\Filament\Pages\Tenancy\RegisterCompany;
 use App\Http\Middleware\SetCompanyContextFromTenant;
 use App\Models\Company;
+use Filament\Auth\MultiFactor\App\AppAuthentication;
 use Filament\Forms\Components\DatePicker;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
@@ -47,6 +48,11 @@ class AdminPanelProvider extends PanelProvider
             ->path('admin')
             ->viteTheme('resources/css/filament/admin/theme.css')
             ->login()
+            // Each user may turn on an authenticator app (with recovery codes) from their profile.
+            ->profile()
+            ->multiFactorAuthentication([
+                AppAuthentication::make()->recoverable()->regenerableRecoveryCodes(),
+            ])
             // Every resource model must have a policy (app/Policies); a missing
             // one throws instead of silently allowing every company member.
             ->strictAuthorization()

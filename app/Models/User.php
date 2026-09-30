@@ -8,6 +8,8 @@ namespace App\Models;
 use App\Enums\CompanyRole;
 use App\Support\Rbac\RbacRegistry;
 use Database\Factories\UserFactory;
+use Filament\Auth\MultiFactor\App\Contracts\HasAppAuthentication;
+use Filament\Auth\MultiFactor\App\Contracts\HasAppAuthenticationRecovery;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Models\Contracts\HasTenants;
 use Filament\Panel;
@@ -25,9 +27,13 @@ use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 use Spatie\Permission\Traits\HasRoles;
 
+/**
+ * @property string|null $app_authentication_secret
+ * @property array<int, string>|null $app_authentication_recovery_codes
+ */
 #[Fillable(['name', 'email', 'password'])]
 #[Hidden(['password', 'remember_token'])]
-class User extends Authenticatable implements FilamentUser, HasTenants, OAuthenticatable
+class User extends Authenticatable implements FilamentUser, HasAppAuthentication, HasAppAuthenticationRecovery, HasTenants, OAuthenticatable
 {
     /** @use HasFactory<UserFactory> */
     use HasApiTokens, HasFactory, HasRoles, Notifiable;
@@ -49,7 +55,38 @@ class User extends Authenticatable implements FilamentUser, HasTenants, OAuthent
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'app_authentication_secret' => 'encrypted',
+            'app_authentication_recovery_codes' => 'encrypted:array',
         ];
+    }
+
+    // Two-factor authentication with an authenticator app (Filament's provider).
+
+    public function getAppAuthenticationSecret(): ?string
+    {
+        return $this->app_authentication_secret;
+    }
+
+    public function saveAppAuthenticationSecret(?string $secret): void
+    {
+        $this->app_authentication_secret = $secret;
+        $this->save();
+    }
+
+    public function getAppAuthenticationHolderName(): string
+    {
+        return $this->email;
+    }
+
+    public function getAppAuthenticationRecoveryCodes(): ?array
+    {
+        return $this->app_authentication_recovery_codes;
+    }
+
+    public function saveAppAuthenticationRecoveryCodes(?array $codes): void
+    {
+        $this->app_authentication_recovery_codes = $codes;
+        $this->save();
     }
 
     /**
