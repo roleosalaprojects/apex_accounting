@@ -21,7 +21,7 @@ class PurchaseBookPage extends ReportPage
     {
         $r = app(PurchaseBook::class)->build($this->company()->id, (string) $this->from, (string) $this->asOf);
         $rows = array_map(fn ($x) => [
-            $x['date'], $x['number'], $x['vendor'], $x['tin'],
+            $this->date($x['date']), $x['number'], $x['vendor'], $x['tin'],
             $this->peso($x['exempt']), $this->peso($x['vatable']),
             $this->peso($x['input_vat_direct']), $this->peso($x['input_vat_common']), $this->peso($x['total']),
         ], $r['rows']);

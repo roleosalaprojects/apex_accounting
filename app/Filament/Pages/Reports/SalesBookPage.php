@@ -21,7 +21,7 @@ class SalesBookPage extends ReportPage
     {
         $r = app(SalesBook::class)->build($this->company()->id, (string) $this->from, (string) $this->asOf);
         $rows = array_map(fn ($x) => [
-            $x['date'], $x['number'], $x['customer'], $x['tin'],
+            $this->date($x['date']), $x['number'], $x['customer'], $x['tin'],
             $this->peso($x['exempt']), $this->peso($x['zero_rated']), $this->peso($x['vatable']),
             $this->peso($x['output_vat']), $this->peso($x['total']),
         ], $r['rows']);

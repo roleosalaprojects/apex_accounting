@@ -20,7 +20,7 @@ class ApAging extends ReportPage
     protected function payload(): array
     {
         $r = app(ApAgingReport::class)->build($this->company()->id, (string) $this->asOf);
-        $rows = array_map(fn ($x) => [$x['number'], $x['vendor'], $x['due_date'], $x['bucket'], $this->peso($x['outstanding'])], $r['rows']);
+        $rows = array_map(fn ($x) => [$x['number'], $x['vendor'], $this->date($x['due_date']), $this->bucket($x['bucket']), $this->peso($x['outstanding'])], $r['rows']);
 
         return [
             'columns' => ['Bill', 'Vendor', 'Due', 'Bucket', 'Outstanding'],

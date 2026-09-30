@@ -17,7 +17,7 @@ class GeneralJournal extends ReportPage
         $r = app(GeneralJournalReport::class)->build($this->company()->id, (string) $this->from, (string) $this->asOf);
 
         $rows = array_map(fn ($x) => [
-            (string) $x['date'], (string) $x['number'], (string) $x['account'], (string) $x['memo'],
+            $this->date($x['date']), (string) $x['number'], (string) $x['account'], (string) $x['memo'],
             $this->peso($x['debit']), $this->peso($x['credit']),
         ], $r['rows']);
 

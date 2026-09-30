@@ -20,7 +20,7 @@ class ArAging extends ReportPage
     protected function payload(): array
     {
         $r = app(ArAgingReport::class)->build($this->company()->id, (string) $this->asOf);
-        $rows = array_map(fn ($x) => [$x['number'], $x['customer'], $x['due_date'], $x['bucket'], $this->peso($x['outstanding'])], $r['rows']);
+        $rows = array_map(fn ($x) => [$x['number'], $x['customer'], $this->date($x['due_date']), $this->bucket($x['bucket']), $this->peso($x['outstanding'])], $r['rows']);
 
         return [
             'columns' => ['Invoice', 'Customer', 'Due', 'Bucket', 'Outstanding'],

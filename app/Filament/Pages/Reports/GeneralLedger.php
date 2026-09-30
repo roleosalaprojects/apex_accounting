@@ -45,7 +45,7 @@ class GeneralLedger extends ReportPage
 
         $rows = [['', '', 'Opening balance', '', '', $this->peso($r['opening'])]];
         foreach ($r['rows'] as $x) {
-            $rows[] = [(string) $x['date'], (string) $x['number'], (string) $x['memo'], $this->peso($x['debit']), $this->peso($x['credit']), $this->peso($x['balance'])];
+            $rows[] = [$this->date($x['date']), (string) $x['number'], (string) $x['memo'], $this->peso($x['debit']), $this->peso($x['credit']), $this->peso($x['balance'])];
         }
 
         return [

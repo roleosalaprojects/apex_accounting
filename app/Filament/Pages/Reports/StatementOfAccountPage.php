@@ -39,7 +39,7 @@ class StatementOfAccountPage extends ReportPage
 
         $rows = [['', '', 'Opening balance', '', '', $this->peso($r['opening'])]];
         foreach ($r['rows'] as $x) {
-            $rows[] = [(string) $x['date'], (string) $x['number'], (string) $x['type'], $this->peso($x['charge']), $this->peso($x['credit']), $this->peso($x['balance'])];
+            $rows[] = [$this->date($x['date']), (string) $x['number'], (string) $x['type'], $this->peso($x['charge']), $this->peso($x['credit']), $this->peso($x['balance'])];
         }
 
         return [

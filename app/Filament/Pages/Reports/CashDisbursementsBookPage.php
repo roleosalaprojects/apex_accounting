@@ -22,7 +22,7 @@ class CashDisbursementsBookPage extends ReportPage
         $r = app(CashDisbursementsBook::class)->build($this->company()->id, (string) $this->from, (string) $this->asOf);
 
         $rows = array_map(fn ($x) => [
-            (string) $x['date'], (string) $x['reference'], (string) ($x['voucher_no'] ?? ''), (string) $x['particulars'], $this->peso($x['amount']),
+            $this->date($x['date']), (string) $x['reference'], (string) ($x['voucher_no'] ?? ''), (string) $x['particulars'], $this->peso($x['amount']),
         ], $r['rows']);
 
         return [

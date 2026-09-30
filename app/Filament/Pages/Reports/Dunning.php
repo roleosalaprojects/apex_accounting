@@ -35,7 +35,7 @@ class Dunning extends ReportPage
                 (string) $x['customer'],
                 $this->peso((int) $x['outstanding']),
                 $this->peso((int) $x['overdue']),
-                $x['oldest_due'] !== null ? (string) $x['oldest_due'] : '—',
+                $x['oldest_due'] !== null ? $this->date($x['oldest_due']) : '—',
                 $limit > 0 ? $this->peso($limit) : '—',
                 $status,
             ];

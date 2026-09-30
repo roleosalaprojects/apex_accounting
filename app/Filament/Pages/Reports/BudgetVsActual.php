@@ -18,6 +18,17 @@ class BudgetVsActual extends ReportPage
         return 'Budget vs Actual';
     }
 
+    /** Open on the latest budget rather than an empty comparison. */
+    public function mount(): void
+    {
+        parent::mount();
+
+        $this->entity ??= (string) (Budget::query()->orderByDesc('fiscal_year')->orderBy('name')->value('id') ?? '');
+        if ($this->entity === '') {
+            $this->entity = null;
+        }
+    }
+
     protected function entityFilter(): ?array
     {
         return [

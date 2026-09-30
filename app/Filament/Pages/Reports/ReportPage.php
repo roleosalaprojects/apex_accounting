@@ -103,6 +103,25 @@ abstract class ReportPage extends Page
         return $c;
     }
 
+    /** An aging bucket key as people read it. */
+    protected function bucket(string $key): string
+    {
+        return match ($key) {
+            'current' => 'Current',
+            '1_30' => '1–30 days',
+            '31_60' => '31–60 days',
+            '61_90' => '61–90 days',
+            '90_plus' => 'Over 90 days',
+            default => $key,
+        };
+    }
+
+    /** A row's date as "Jan 17, 2026", whatever the database returned it as. */
+    protected function date(mixed $value): string
+    {
+        return blank($value) ? '' : Carbon::parse((string) $value)->format('M j, Y');
+    }
+
     protected function peso(int $minor): string
     {
         return number_format($minor / 100, 2);
