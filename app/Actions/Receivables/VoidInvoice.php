@@ -6,19 +6,30 @@ namespace App\Actions\Receivables;
 
 use App\Actions\Ledger\ReverseJournalEntry;
 use App\Enums\InvoiceStatus;
+use App\Enums\ItemType;
+use App\Enums\JournalStatus;
 use App\Models\Invoice;
+use App\Models\Item;
+use App\Models\JournalEntry;
 use App\Models\User;
+use App\Services\Inventory\InventoryService;
+use App\Support\Quantity;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
 /**
- * Voids a posted invoice by reversing its journal entry (reason required) and
- * marking it voided. Blocked when payments or credit memos are applied — those
- * must be unapplied/voided first (§6.2).
+ * Voids a posted invoice by reversing its entries (reason required) — the
+ * sale and, for stocked goods, the cost of sales, which go back into stock at
+ * the cost recorded on each line — and marking it voided. Blocked when
+ * payments or credit memos are applied — those must be unapplied/voided
+ * first (§6.2).
  */
 final class VoidInvoice
 {
-    public function __construct(private readonly ReverseJournalEntry $reverse) {}
+    public function __construct(
+        private readonly ReverseJournalEntry $reverse,
+        private readonly InventoryService $inventory,
+    ) {}
 
     public function handle(Invoice $invoice, string $reason, ?User $actor = null): Invoice
     {
@@ -33,9 +44,23 @@ final class VoidInvoice
                 throw new RuntimeException('Unapply payments/credit memos before voiding this invoice.');
             }
 
-            if ($invoice->journal_entry_id !== null) {
-                $this->reverse->handle($invoice->journalEntry, $reason, actor: $actor);
+            foreach ($invoice->lines()->orderBy('line_no')->get() as $line) {
+                $item = $line->item_id === null ? null : Item::query()->withoutGlobalScopes()
+                    ->where('company_id', $invoice->company_id)->find($line->item_id);
+
+                if ($item instanceof Item && $item->type === ItemType::Inventory) {
+                    $this->inventory->receive($item, Quantity::toUnits($line->qty), $line->cogs ?? 0);
+                }
             }
+
+            JournalEntry::query()->withoutGlobalScopes()
+                ->where('company_id', $invoice->company_id)
+                ->where('source_type', $invoice->getMorphClass())
+                ->where('source_id', $invoice->id)
+                ->where('status', JournalStatus::Posted->value)
+                ->whereNull('reversal_of_id')
+                ->get()
+                ->each(fn (JournalEntry $entry) => $this->reverse->handle($entry, $reason, actor: $actor));
 
             $invoice->forceFill(['status' => InvoiceStatus::Voided])->save();
 

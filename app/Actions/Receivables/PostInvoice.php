@@ -282,14 +282,14 @@ final class PostInvoice
         /** @var array<string, array{cogs: int, inventory: int, amount: int, dims: array{department_id: int|null, project_id: int|null, fund_id: int|null, branch_id: int|null}}> $byPair */
         $byPair = [];
 
-        foreach ($data->lines as $lineData) {
-            if ($lineData->item_id === null) {
+        foreach ($invoice->lines()->orderBy('line_no')->get() as $line) {
+            if ($line->item_id === null) {
                 continue;
             }
 
             /** @var Item|null $item */
             $item = Item::query()->withoutGlobalScopes()
-                ->where('company_id', $company->id)->find($lineData->item_id);
+                ->where('company_id', $company->id)->find($line->item_id);
 
             if ($item === null || $item->type !== ItemType::Inventory) {
                 continue;
@@ -298,16 +298,18 @@ final class PostInvoice
                 throw new RuntimeException("Inventory item {$item->sku} needs COGS and inventory accounts.");
             }
 
-            $cogs = $this->inventory->issue($item, Quantity::toUnits($lineData->qty), $company);
+            // Kept on the line so a void can put the goods back at this cost.
+            $cogs = $this->inventory->issue($item, Quantity::toUnits($line->qty), $company);
+            $line->forceFill(['cogs' => $cogs])->save();
             if ($cogs === 0) {
                 continue;
             }
 
             $dims = [
-                'department_id' => $lineData->department_id ?? $data->department_id,
-                'project_id' => $lineData->project_id ?? $data->project_id,
-                'fund_id' => $lineData->fund_id ?? $data->fund_id,
-                'branch_id' => $lineData->branch_id ?? $data->branch_id,
+                'department_id' => $line->department_id,
+                'project_id' => $line->project_id,
+                'fund_id' => $line->fund_id,
+                'branch_id' => $line->branch_id,
             ];
 
             $key = $item->cogs_account_id.':'.$item->inventory_account_id.':'.implode(':', array_map('strval', $dims));

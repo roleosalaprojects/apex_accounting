@@ -2,18 +2,25 @@
 
 declare(strict_types=1);
 
+use App\Actions\Payables\PostBill;
 use App\Actions\Receivables\PostInvoice;
 use App\Actions\Receivables\ReceiveCustomerPayment;
 use App\Actions\Receivables\VoidInvoice;
+use App\Data\Payables\BillData;
 use App\Data\Receivables\CustomerPaymentData;
 use App\Data\Receivables\InvoiceData;
 use App\Enums\InvoiceStatus;
+use App\Enums\ItemType;
 use App\Enums\JournalStatus;
 use App\Models\Customer;
 use App\Models\Department;
+use App\Models\Item;
 use App\Models\PeriodBalance;
 use App\Models\TaxCode;
+use App\Models\Vendor;
+use App\Services\Inventory\InventoryService;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\DB;
 
 beforeEach(function () {
     $this->company = makeCompany();
@@ -135,3 +142,41 @@ it('blocks voiding an invoice with payments applied', function () {
 
     app(VoidInvoice::class)->handle($invoice->fresh(), 'too late');
 })->throws(RuntimeException::class);
+
+it('voiding an invoice puts stocked goods back and reverses their cost of sales', function () {
+    $vendor = Vendor::factory()->create(['company_id' => $this->company->id]);
+    $rice = Item::factory()->create([
+        'company_id' => $this->company->id, 'type' => ItemType::Inventory, 'is_vat_exempt_item' => true,
+        'income_account_id' => account($this->company, '4100')->id,
+        'cogs_account_id' => account($this->company, '5100')->id,
+        'inventory_account_id' => account($this->company, '1300')->id,
+    ]);
+    app(PostBill::class)->handle(BillData::from([
+        'company_id' => $this->company->id, 'vendor_id' => $vendor->id, 'bill_date' => '2026-06-02',
+        'lines' => [['description' => 'Rice', 'qty' => '1000', 'unit_price' => 2_000_00, 'tax_code_id' => $this->exempt,
+            'item_id' => $rice->id, 'expense_or_asset_account_id' => account($this->company, '1300')->id]],
+    ]));
+
+    $invoice = app(PostInvoice::class)->handle(invoiceData([
+        'lines' => [['description' => 'Rice', 'qty' => '300', 'unit_price' => 2_500_00, 'tax_code_id' => $this->exempt,
+            'item_id' => $rice->id, 'income_account_id' => account($this->company, '4100')->id]],
+    ]));
+
+    $inventory = app(InventoryService::class);
+    expect($invoice->lines->first()->cogs)->toBe(600_000_00)
+        ->and($inventory->onHand($rice)['qty_units'])->toBe(700 * 10_000);
+
+    app(VoidInvoice::class)->handle($invoice, 'Customer cancelled before delivery');
+
+    $balance = fn (string $code): int => (int) DB::table('journal_lines')
+        ->join('journal_entries', 'journal_entries.id', '=', 'journal_lines.journal_entry_id')
+        ->where('journal_entries.company_id', $this->company->id)
+        ->where('journal_lines.account_id', account($this->company, $code)->id)
+        ->selectRaw('COALESCE(SUM(debit), 0) - COALESCE(SUM(credit), 0) as b')->value('b');
+
+    expect($inventory->onHand($rice))->toMatchArray(['qty_units' => 1000 * 10_000, 'value' => 2_000_000_00])
+        ->and($balance('1300'))->toBe(2_000_000_00)
+        ->and($balance('5100'))->toBe(0)
+        ->and($balance('4100'))->toBe(0)
+        ->and(Artisan::call('ledger:verify', ['company' => $this->company->id]))->toBe(0);
+});
