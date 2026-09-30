@@ -252,6 +252,10 @@ final class PostBill
                         debit: $line['vat'],
                         memo: 'Input VAT',
                         vat_bucket: $line['bucket'],
+                        department_id: $line['dims']['department_id'],
+                        project_id: $line['dims']['project_id'],
+                        fund_id: $line['dims']['fund_id'],
+                        branch_id: $line['dims']['branch_id'],
                     );
                 }
             }

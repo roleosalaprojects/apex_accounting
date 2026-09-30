@@ -37,6 +37,14 @@ use Illuminate\Support\Carbon;
  * @property float $exchange_rate
  * @property int|null $foreign_total
  * @property int|null $journal_entry_id
+ * @property int|null $department_id
+ * @property int|null $project_id
+ * @property int|null $fund_id
+ * @property int|null $branch_id
+ * @property-read Department|null $department
+ * @property-read Project|null $project
+ * @property-read Fund|null $fund
+ * @property-read Branch|null $branch
  */
 final class Bill extends Model
 {
@@ -103,6 +111,38 @@ final class Bill extends Model
     public function debitMemoApplications(): HasMany
     {
         return $this->hasMany(DebitMemoApplication::class);
+    }
+
+    /**
+     * @return BelongsTo<Department, $this>
+     */
+    public function department(): BelongsTo
+    {
+        return $this->belongsTo(Department::class);
+    }
+
+    /**
+     * @return BelongsTo<Project, $this>
+     */
+    public function project(): BelongsTo
+    {
+        return $this->belongsTo(Project::class);
+    }
+
+    /**
+     * @return BelongsTo<Fund, $this>
+     */
+    public function fund(): BelongsTo
+    {
+        return $this->belongsTo(Fund::class);
+    }
+
+    /**
+     * @return BelongsTo<Branch, $this>
+     */
+    public function branch(): BelongsTo
+    {
+        return $this->belongsTo(Branch::class);
     }
 
     /**

@@ -59,6 +59,10 @@ class CreateBill extends CreateRecord
                 'pricing_mode' => $data['pricing_mode'],
                 'external_reference_no' => $data['external_reference_no'] ?? null,
                 'memo' => $data['memo'] ?? null,
+                'department_id' => filled($data['department_id'] ?? null) ? (int) $data['department_id'] : null,
+                'project_id' => filled($data['project_id'] ?? null) ? (int) $data['project_id'] : null,
+                'fund_id' => filled($data['fund_id'] ?? null) ? (int) $data['fund_id'] : null,
+                'branch_id' => filled($data['branch_id'] ?? null) ? (int) $data['branch_id'] : null,
                 'lines' => $lines,
             ]), $actor);
 

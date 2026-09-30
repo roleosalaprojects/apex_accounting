@@ -249,6 +249,10 @@ final class PostInvoice
                 account_id: $this->account($company, '2200')->id,
                 credit: $computed['totals']['vat'],
                 memo: 'Output VAT',
+                department_id: $defaultDims['department_id'],
+                project_id: $defaultDims['project_id'],
+                fund_id: $defaultDims['fund_id'],
+                branch_id: $defaultDims['branch_id'],
             );
         }
 

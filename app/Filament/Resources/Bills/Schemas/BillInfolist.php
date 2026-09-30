@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Resources\Bills\Schemas;
 
 use App\Filament\Support\AttachmentsSection;
+use App\Filament\Support\DimensionSelects;
 use App\Filament\Support\Peso;
 use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Infolists\Components\TextEntry;
@@ -25,6 +26,7 @@ class BillInfolist
                 TextEntry::make('pricing_mode')->label('Pricing'),
                 TextEntry::make('journalEntry.number')->label('Journal entry')->placeholder('—'),
             ]),
+            DimensionSelects::infolistSection(),
             Section::make('Lines')->schema([
                 RepeatableEntry::make('lines')->hiddenLabel()->columns(6)->schema([
                     TextEntry::make('description'),

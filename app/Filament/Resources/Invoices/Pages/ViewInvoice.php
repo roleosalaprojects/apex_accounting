@@ -28,7 +28,7 @@ class ViewInvoice extends ViewRecord
 
     protected function recordRelations(): array
     {
-        return ['customer', 'lines.taxCode', 'attachments.uploader'];
+        return ['customer', 'lines.taxCode', 'attachments.uploader', 'department', 'project', 'fund', 'branch'];
     }
 
     protected function getHeaderActions(): array

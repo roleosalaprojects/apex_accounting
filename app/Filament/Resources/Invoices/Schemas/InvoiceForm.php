@@ -6,6 +6,7 @@ namespace App\Filament\Resources\Invoices\Schemas;
 
 use App\Enums\AccountType;
 use App\Enums\PricingMode;
+use App\Filament\Support\DimensionSelects;
 use App\Models\Account;
 use App\Models\Customer;
 use App\Models\Item;
@@ -63,6 +64,7 @@ class InvoiceForm
                 TextInput::make('exchange_rate')->label('Exchange rate (PHP per 1 unit)')
                     ->numeric()->minValue(0)->default(1)->required(),
                 Textarea::make('memo')->columnSpanFull(),
+                DimensionSelects::section(),
 
                 Repeater::make('lines')
                     ->label('Line items')

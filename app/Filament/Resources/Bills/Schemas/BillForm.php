@@ -6,6 +6,7 @@ namespace App\Filament\Resources\Bills\Schemas;
 
 use App\Enums\PricingMode;
 use App\Enums\VatBucket;
+use App\Filament\Support\DimensionSelects;
 use App\Filament\Support\PurchaseLineDefaults;
 use App\Models\Account;
 use App\Models\Item;
@@ -65,6 +66,7 @@ class BillForm
                     ->numeric()->minValue(0)->default(1)->required(),
                 TextInput::make('external_reference_no')->label("Vendor's invoice no."),
                 Textarea::make('memo')->columnSpanFull(),
+                DimensionSelects::section(),
 
                 Repeater::make('lines')
                     ->label('Line items')
