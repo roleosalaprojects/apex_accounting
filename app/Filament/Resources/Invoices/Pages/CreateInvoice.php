@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace App\Filament\Resources\Invoices\Pages;
 
 use App\Actions\Receivables\PostInvoice;
+use App\Actions\Receivables\SaveDraftInvoice;
 use App\Data\Receivables\InvoiceData;
 use App\Exceptions\Ledger\LedgerException;
 use App\Filament\Resources\Invoices\InvoiceResource;
 use App\Filament\Support\DimensionSelects;
 use App\Models\Company;
+use App\Models\Invoice;
 use App\Models\User;
 use App\Support\Currencies;
 use Filament\Facades\Filament;
@@ -18,6 +20,7 @@ use Filament\Resources\Pages\CreateRecord;
 use Filament\Support\Exceptions\Halt;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
+use RuntimeException;
 
 /**
  * Issues an invoice through PostInvoice (§2 — all writes go through Actions).
@@ -25,6 +28,8 @@ use Illuminate\Support\Facades\Auth;
 class CreateInvoice extends CreateRecord
 {
     protected static string $resource = InvoiceResource::class;
+
+    private bool $savedAsDraft = false;
 
     /**
      * @param  array<string, mixed>  $data
@@ -50,16 +55,25 @@ class CreateInvoice extends CreateRecord
             'income_account_id' => (int) $line['income_account_id'],
         ] + DimensionSelects::ids($line), $data['lines']);
 
+        $invoiceData = InvoiceData::from([
+            'company_id' => $company->id,
+            'customer_id' => (int) $data['customer_id'],
+            'invoice_date' => $data['invoice_date'],
+            'due_date' => $data['due_date'] ?? null,
+            'pricing_mode' => $data['pricing_mode'],
+            'memo' => $data['memo'] ?? null,
+            'lines' => $lines,
+        ] + DimensionSelects::ids($data));
+
         try {
-            $invoice = app(PostInvoice::class)->handle(InvoiceData::from([
-                'company_id' => $company->id,
-                'customer_id' => (int) $data['customer_id'],
-                'invoice_date' => $data['invoice_date'],
-                'due_date' => $data['due_date'] ?? null,
-                'pricing_mode' => $data['pricing_mode'],
-                'memo' => $data['memo'] ?? null,
-                'lines' => $lines,
-            ] + DimensionSelects::ids($data)), $actor);
+            // Maker-checker: a draft when the company wants a second pair of eyes or the maker cannot post.
+            if ($company->require_approval || ! $actor->can('post', new Invoice(['company_id' => $company->id]))) {
+                $this->savedAsDraft = true;
+
+                return app(SaveDraftInvoice::class)->handle($invoiceData, $actor);
+            }
+
+            $invoice = app(PostInvoice::class)->handle($invoiceData, $actor);
 
             if ($currency !== Currencies::FUNCTIONAL) {
                 $invoice->update([
@@ -70,10 +84,15 @@ class CreateInvoice extends CreateRecord
             }
 
             return $invoice;
-        } catch (LedgerException $e) {
+        } catch (LedgerException|RuntimeException $e) {
             Notification::make()->danger()->title('Could not post invoice')->body($e->getMessage())->send();
 
             throw new Halt;
         }
+    }
+
+    protected function getCreatedNotificationTitle(): ?string
+    {
+        return $this->savedAsDraft ? 'Saved as a draft — a poster has been asked to approve it' : 'Invoice posted';
     }
 }

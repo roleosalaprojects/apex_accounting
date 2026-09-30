@@ -17,7 +17,7 @@ class BillsTable
     {
         return $table
             ->columns([
-                TextColumn::make('number')->searchable()->sortable(),
+                TextColumn::make('number')->searchable()->sortable()->placeholder('Draft'),
                 TextColumn::make('vendor.name')->label('Vendor')->searchable(),
                 TextColumn::make('bill_date')->date()->sortable(),
                 TextColumn::make('status')->badge()->searchable()

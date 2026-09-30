@@ -4,19 +4,25 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Invoices;
 
+use App\Enums\InvoiceStatus;
 use App\Filament\Resources\Invoices\Pages\CreateInvoice;
 use App\Filament\Resources\Invoices\Pages\ListInvoices;
 use App\Filament\Resources\Invoices\Pages\ViewInvoice;
 use App\Filament\Resources\Invoices\Schemas\InvoiceForm;
 use App\Filament\Resources\Invoices\Schemas\InvoiceInfolist;
 use App\Filament\Resources\Invoices\Tables\InvoicesTable;
+use App\Models\Company;
 use App\Models\Invoice;
+use App\Models\User;
+use App\Support\Rbac\RbacRegistry;
 use BackedEnum;
+use Filament\Facades\Filament;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Auth;
 
 /**
  * Invoices are issued through PostInvoice via the custom Create page (§2 — all
@@ -51,6 +57,29 @@ class InvoiceResource extends Resource
     public static function canDelete(Model $record): bool
     {
         return false;
+    }
+
+    /** Drafts waiting for a poster, shown to those who can post them. */
+    public static function getNavigationBadge(): ?string
+    {
+        $user = Auth::user();
+        $company = Filament::getTenant();
+        if (! $user instanceof User || ! $company instanceof Company || ! $user->hasCompanyPermission($company->id, RbacRegistry::INVOICE_POST)) {
+            return null;
+        }
+        $drafts = Invoice::query()->where('status', InvoiceStatus::Draft)->count();
+
+        return $drafts > 0 ? (string) $drafts : null;
+    }
+
+    public static function getNavigationBadgeColor(): ?string
+    {
+        return 'warning';
+    }
+
+    public static function getNavigationBadgeTooltip(): ?string
+    {
+        return 'Drafts awaiting approval';
     }
 
     public static function getPages(): array

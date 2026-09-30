@@ -8,29 +8,21 @@ use App\Actions\Ledger\PostJournalEntry;
 use App\Data\Ledger\JournalEntryData;
 use App\Data\Ledger\JournalLineData;
 use App\Data\Payables\BillData;
-use App\Data\Payables\BillLineData;
 use App\Enums\InvoiceStatus;
 use App\Enums\ItemType;
-use App\Enums\PricingMode;
 use App\Enums\StockMovementKind;
-use App\Exceptions\Ledger\InvalidVatBucketException;
-use App\Exceptions\Ledger\InventoryAccountException;
 use App\Models\Account;
 use App\Models\Bill;
 use App\Models\Company;
 use App\Models\Item;
-use App\Models\TaxCode;
 use App\Models\User;
 use App\Models\Vendor;
 use App\Services\Inventory\InventoryService;
 use App\Services\Inventory\Movement;
 use App\Services\Numbering\NumberGenerator;
-use App\Services\Tax\InputVatRouter;
-use App\Services\Tax\TaxValidator;
-use App\Services\Tax\VatMath;
+use App\Services\Payables\BillLineCalculator;
 use App\Support\Quantity;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 use Spatie\LaravelData\DataCollection;
@@ -50,16 +42,18 @@ final class PostBill
 {
     public function __construct(
         private readonly PostJournalEntry $post,
-        private readonly VatMath $vat,
-        private readonly TaxValidator $taxValidator,
-        private readonly InputVatRouter $router,
+        private readonly BillLineCalculator $calculator,
         private readonly NumberGenerator $numbers,
         private readonly InventoryService $inventory,
     ) {}
 
-    public function handle(BillData $data, ?User $actor = null): Bill
+    /**
+     * Post a new bill — or, given a draft awaiting approval, post that draft
+     * in place so its id, attachments and history carry over.
+     */
+    public function handle(BillData $data, ?User $actor = null, ?Bill $draft = null): Bill
     {
-        return DB::transaction(function () use ($data, $actor): Bill {
+        return DB::transaction(function () use ($data, $actor, $draft): Bill {
             /** @var Company $company */
             $company = Company::query()->withoutGlobalScopes()->findOrFail($data->company_id);
             /** @var Vendor $vendor */
@@ -70,15 +64,18 @@ final class PostBill
                 throw new RuntimeException('A bill needs at least one line.');
             }
 
-            $taxCodes = TaxCode::query()->withoutGlobalScopes()
-                ->where('company_id', $company->id)->get()->keyBy('id');
-
-            $computed = $this->computeLines($company, $data, $taxCodes);
+            $computed = $this->calculator->compute($company, $data);
 
             $dueDate = $data->due_date
                 ?? Carbon::parse($data->bill_date)->addDays($vendor->terms_days)->toDateString();
 
-            $bill = new Bill;
+            $bill = $draft ?? new Bill;
+            if ($draft !== null) {
+                if ($draft->status !== InvoiceStatus::Draft) {
+                    throw new RuntimeException('Only a draft bill can be posted.');
+                }
+                $draft->lines()->delete();
+            }
             $bill->forceFill([
                 'company_id' => $company->id,
                 'vendor_id' => $vendor->id,
@@ -122,105 +119,6 @@ final class PostBill
 
             return $bill->load('lines');
         });
-    }
-
-    /**
-     * @param  Collection<int, TaxCode>  $taxCodes
-     * @return array{lines: array<int, array<string, mixed>>, totals: array<string, int>}
-     */
-    private function computeLines(Company $company, BillData $data, $taxCodes): array
-    {
-        $lines = [];
-        $totals = ['vatable' => 0, 'input_vat' => 0, 'exempt' => 0, 'total' => 0];
-        $lineNo = 1;
-
-        $itemIds = [];
-        foreach ($data->lines as $lineData) {
-            if ($lineData->item_id !== null) {
-                $itemIds[] = $lineData->item_id;
-            }
-        }
-        $items = Item::query()->withoutGlobalScopes()
-            ->where('company_id', $company->id)->whereIn('id', $itemIds)->get()->keyBy('id');
-
-        foreach ($data->lines as $lineData) {
-            $item = null;
-            if ($lineData->item_id !== null) {
-                $item = $items->get($lineData->item_id) ?? throw new RuntimeException("Item {$lineData->item_id} not found.");
-            }
-            $accountId = $this->costAccountFor($company, $lineNo, $lineData, $item);
-
-            /** @var TaxCode|null $taxCode */
-            $taxCode = $taxCodes->get($lineData->tax_code_id);
-            if ($taxCode === null) {
-                throw new RuntimeException("Tax code {$lineData->tax_code_id} not found.");
-            }
-            $this->taxValidator->assertAllowed($taxCode, $company->taxpayer_type);
-
-            $gross = Quantity::extend($lineData->unit_price, Quantity::toUnits($lineData->qty));
-            $breakdown = $data->pricing_mode === PricingMode::VatInclusive
-                ? $this->vat->fromInclusive($gross, $taxCode->rate_bp)
-                : $this->vat->fromExclusive($gross, $taxCode->rate_bp);
-
-            $net = $breakdown->base;
-            $vat = $breakdown->vat;
-
-            if ($vat > 0 && $lineData->vat_bucket === null) {
-                throw InvalidVatBucketException::make("line {$lineNo} carries input VAT but no bucket");
-            }
-
-            $bucket = $lineData->vat_bucket;
-            $capitalize = $bucket !== null && $this->router->isCapitalizedIntoCost($bucket) && $vat > 0;
-            $costDebit = $capitalize ? $net + $vat : $net;
-            $inputVatAccountCode = ($bucket !== null && $vat > 0) ? $this->router->accountCodeFor($bucket) : null;
-
-            if ($taxCode->isVat12()) {
-                $totals['vatable'] += $net;
-            } elseif ($taxCode->isExempt()) {
-                $totals['exempt'] += $net;
-            } else {
-                $totals['vatable'] += $net; // zero-rated treated as taxable purchase
-            }
-            if ($inputVatAccountCode !== null) {
-                $totals['input_vat'] += $vat;
-            }
-            $totals['total'] += $net + $vat;
-
-            $dims = [
-                'department_id' => $lineData->department_id ?? $data->department_id,
-                'project_id' => $lineData->project_id ?? $data->project_id,
-                'fund_id' => $lineData->fund_id ?? $data->fund_id,
-                'branch_id' => $lineData->branch_id ?? $data->branch_id,
-            ];
-
-            $lines[] = [
-                'model' => array_merge([
-                    'line_no' => $lineNo,
-                    'item_id' => $lineData->item_id,
-                    'description' => $lineData->description,
-                    'qty' => $lineData->qty,
-                    'unit_price' => $lineData->unit_price,
-                    'tax_code_id' => $taxCode->id,
-                    'vat_bucket' => $bucket,
-                    'line_total' => $costDebit,
-                    'vat_amount' => $vat,
-                    'expense_or_asset_account_id' => $accountId,
-                    'purchase_order_line_id' => $lineData->purchase_order_line_id,
-                ], $dims),
-                'item' => $item,
-                'cost_debit' => $costDebit,
-                'vat' => $vat,
-                'input_vat_account_code' => $inputVatAccountCode,
-                'expense_account_id' => $accountId,
-                'tax_code_id' => $taxCode->id,
-                'bucket' => $bucket,
-                'desc' => $lineData->description,
-                'dims' => $dims,
-            ];
-            $lineNo++;
-        }
-
-        return ['lines' => $lines, 'totals' => $totals];
     }
 
     /**
@@ -287,33 +185,6 @@ final class PostBill
             created_by: $data->created_by,
             approved_by: $data->approved_by ?? $data->created_by,
         );
-    }
-
-    /**
-     * The account a line's cost is debited to: the one on the line, except that
-     * a stocked item may only go to its own inventory account.
-     */
-    private function costAccountFor(Company $company, int $lineNo, BillLineData $line, ?Item $item): int
-    {
-        if ($item === null || $item->type !== ItemType::Inventory) {
-            return $line->expense_or_asset_account_id;
-        }
-
-        if ($item->inventory_account_id === null) {
-            throw InventoryAccountException::missing($lineNo, $item->name);
-        }
-
-        if ($line->expense_or_asset_account_id !== $item->inventory_account_id) {
-            $accounts = Account::query()->withoutGlobalScopes()
-                ->where('company_id', $company->id)
-                ->whereIn('id', [$item->inventory_account_id, $line->expense_or_asset_account_id])
-                ->get()->keyBy('id');
-            $label = fn (int $id): string => ($a = $accounts->get($id)) !== null ? "{$a->code} {$a->name}" : "account #{$id}";
-
-            throw InventoryAccountException::mismatch($lineNo, $item->name, $label($item->inventory_account_id), $label($line->expense_or_asset_account_id));
-        }
-
-        return $item->inventory_account_id;
     }
 
     /**

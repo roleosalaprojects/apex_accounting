@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Invoices\Pages;
 
+use App\Actions\Receivables\PostDraftInvoice;
+use App\Actions\Receivables\RejectDraftInvoice;
 use App\Actions\Receivables\VoidInvoice;
 use App\Enums\InvoiceStatus;
 use App\Filament\Resources\Invoices\InvoiceResource;
+use App\Filament\Support\ApprovalActions;
 use App\Filament\Support\AttachFilesAction;
 use App\Filament\Support\EmailAction;
 use App\Filament\Support\LoadsRecordRelations;
@@ -38,6 +41,8 @@ class ViewInvoice extends ViewRecord
     protected function getHeaderActions(): array
     {
         return [
+            ApprovalActions::post('invoice', fn (Invoice $draft, User $user): Invoice => app(PostDraftInvoice::class)->handle($draft, $user)),
+            ApprovalActions::reject('invoice', fn (Invoice $draft, string $reason, User $user) => app(RejectDraftInvoice::class)->handle($draft, $reason, $user), InvoiceResource::getUrl('index')),
             EmailAction::make('email', 'Email',
                 fn (Invoice $invoice): array => [
                     'to' => array_filter([$invoice->customer->email]),

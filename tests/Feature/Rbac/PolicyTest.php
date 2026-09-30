@@ -23,7 +23,9 @@ use App\Filament\Resources\RecurringTemplates\Pages\ListRecurringTemplates;
 use App\Filament\Resources\RecurringTemplates\RecurringTemplateResource;
 use App\Filament\Resources\Vendors\VendorResource;
 use App\Models\AccountingPeriod;
+use App\Models\Bill;
 use App\Models\Company;
+use App\Models\Invoice;
 use App\Models\RecurringTemplate;
 use App\Models\User;
 use Filament\Actions\Testing\TestAction;
@@ -87,16 +89,18 @@ it('keeps company settings to company.manage', function () {
 });
 
 it('lets a bookkeeper keep master data but not open screens that post', function () {
-    actingAsRole($this->company, CompanyRole::Bookkeeper);
+    $bookkeeper = actingAsRole($this->company, CompanyRole::Bookkeeper);
 
     expect(CustomerResource::canCreate())->toBeTrue()
         ->and(VendorResource::canCreate())->toBeTrue()
         ->and(ItemResource::canCreate())->toBeTrue()
         ->and(RecurringTemplateResource::canCreate())->toBeTrue()
-        // Invoices, bills and manual entries post on save; a bookkeeper may not post.
+        // A bookkeeper drafts invoices and bills for a poster to approve (maker-checker), but cannot post.
         ->and(InvoiceResource::canViewAny())->toBeTrue()
-        ->and(InvoiceResource::canCreate())->toBeFalse()
-        ->and(BillResource::canCreate())->toBeFalse()
+        ->and(InvoiceResource::canCreate())->toBeTrue()
+        ->and(BillResource::canCreate())->toBeTrue()
+        ->and($bookkeeper->can('post', new Invoice(['company_id' => $this->company->id])))->toBeFalse()
+        ->and($bookkeeper->can('post', new Bill(['company_id' => $this->company->id])))->toBeFalse()
         ->and(JournalEntryResource::canCreate())->toBeFalse()
         ->and(AccountResource::canViewAny())->toBeTrue()
         ->and(AccountResource::canCreate())->toBeFalse()
@@ -131,7 +135,7 @@ it('keeps reversal and year-end close out of the approver role', function () {
 });
 
 it('shows Run Due Templates only to members with recurring.run', function () {
-    actingAsRole($this->company, CompanyRole::Bookkeeper);
+    $bookkeeper = actingAsRole($this->company, CompanyRole::Bookkeeper);
     Livewire::test(ListRecurringTemplates::class)->assertActionHidden('runDue');
 
     actingAsRole($this->company, CompanyRole::Accountant);

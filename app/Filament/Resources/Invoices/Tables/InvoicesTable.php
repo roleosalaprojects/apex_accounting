@@ -27,7 +27,7 @@ class InvoicesTable
     {
         return $table
             ->columns([
-                TextColumn::make('number')->searchable()->sortable(),
+                TextColumn::make('number')->searchable()->sortable()->placeholder('Draft'),
                 TextColumn::make('customer.name')->label('Customer')->searchable(),
                 TextColumn::make('invoice_date')->date()->sortable(),
                 TextColumn::make('status')->badge()->searchable(),

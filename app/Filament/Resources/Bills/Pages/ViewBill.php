@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Bills\Pages;
 
+use App\Actions\Payables\PostDraftBill;
+use App\Actions\Payables\RejectDraftBill;
 use App\Actions\Payables\VoidBill;
 use App\Enums\InvoiceStatus;
 use App\Filament\Resources\Bills\Actions\PayBillAction;
 use App\Filament\Resources\Bills\BillResource;
 use App\Filament\Resources\DebitMemos\DebitMemoResource;
+use App\Filament\Support\ApprovalActions;
 use App\Filament\Support\AttachFilesAction;
 use App\Filament\Support\LoadsRecordRelations;
 use App\Filament\Support\VoidAction;
@@ -31,6 +34,8 @@ class ViewBill extends ViewRecord
     protected function getHeaderActions(): array
     {
         return [
+            ApprovalActions::post('bill', fn (Bill $draft, User $user): Bill => app(PostDraftBill::class)->handle($draft, $user)),
+            ApprovalActions::reject('bill', fn (Bill $draft, string $reason, User $user) => app(RejectDraftBill::class)->handle($draft, $reason, $user), BillResource::getUrl('index')),
             PayBillAction::make(),
             VoidAction::make(
                 'bill',

@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace App\Filament\Resources\Bills\Pages;
 
 use App\Actions\Payables\PostBill;
+use App\Actions\Payables\SaveDraftBill;
 use App\Data\Payables\BillData;
 use App\Exceptions\Ledger\LedgerException;
 use App\Filament\Resources\Bills\BillResource;
 use App\Filament\Support\DimensionSelects;
+use App\Models\Bill;
 use App\Models\Company;
 use App\Models\User;
 use App\Support\Currencies;
@@ -18,6 +20,7 @@ use Filament\Resources\Pages\CreateRecord;
 use Filament\Support\Exceptions\Halt;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
+use RuntimeException;
 
 /**
  * Enters a vendor bill through PostBill (§5.3, §7 — all writes go through Actions).
@@ -25,6 +28,8 @@ use Illuminate\Support\Facades\Auth;
 class CreateBill extends CreateRecord
 {
     protected static string $resource = BillResource::class;
+
+    private bool $savedAsDraft = false;
 
     /**
      * @param  array<string, mixed>  $data
@@ -51,17 +56,26 @@ class CreateBill extends CreateRecord
             'expense_or_asset_account_id' => (int) $line['expense_or_asset_account_id'],
         ] + DimensionSelects::ids($line), $data['lines']);
 
+        $billData = BillData::from([
+            'company_id' => $company->id,
+            'vendor_id' => (int) $data['vendor_id'],
+            'bill_date' => $data['bill_date'],
+            'due_date' => $data['due_date'] ?? null,
+            'pricing_mode' => $data['pricing_mode'],
+            'external_reference_no' => $data['external_reference_no'] ?? null,
+            'memo' => $data['memo'] ?? null,
+            'lines' => $lines,
+        ] + DimensionSelects::ids($data));
+
         try {
-            $bill = app(PostBill::class)->handle(BillData::from([
-                'company_id' => $company->id,
-                'vendor_id' => (int) $data['vendor_id'],
-                'bill_date' => $data['bill_date'],
-                'due_date' => $data['due_date'] ?? null,
-                'pricing_mode' => $data['pricing_mode'],
-                'external_reference_no' => $data['external_reference_no'] ?? null,
-                'memo' => $data['memo'] ?? null,
-                'lines' => $lines,
-            ] + DimensionSelects::ids($data)), $actor);
+            // Maker-checker: a draft when the company wants a second pair of eyes or the maker cannot post.
+            if ($company->require_approval || ! $actor->can('post', new Bill(['company_id' => $company->id]))) {
+                $this->savedAsDraft = true;
+
+                return app(SaveDraftBill::class)->handle($billData, $actor);
+            }
+
+            $bill = app(PostBill::class)->handle($billData, $actor);
 
             if ($currency !== Currencies::FUNCTIONAL) {
                 $bill->update([
@@ -72,10 +86,15 @@ class CreateBill extends CreateRecord
             }
 
             return $bill;
-        } catch (LedgerException $e) {
+        } catch (LedgerException|RuntimeException $e) {
             Notification::make()->danger()->title('Could not post bill')->body($e->getMessage())->send();
 
             throw new Halt;
         }
+    }
+
+    protected function getCreatedNotificationTitle(): ?string
+    {
+        return $this->savedAsDraft ? 'Saved as a draft — a poster has been asked to approve it' : 'Bill posted';
     }
 }
