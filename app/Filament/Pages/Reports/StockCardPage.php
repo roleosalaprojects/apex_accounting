@@ -13,7 +13,7 @@ class StockCardPage extends ReportPage
 {
     protected static ?string $navigationLabel = 'Stock Card';
 
-    protected static ?int $navigationSort = 19;
+    protected static ?int $navigationSort = 20;
 
     public function getTitle(): string
     {

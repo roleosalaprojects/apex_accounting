@@ -24,6 +24,9 @@ class CustomerForm
                 TextInput::make('tin'),
                 Textarea::make('address')
                     ->columnSpanFull(),
+                TextInput::make('email')->email()->maxLength(160)
+                    ->helperText('Where invoices, statements and reminders are sent.'),
+                TextInput::make('contact_person')->label('Contact person')->maxLength(120),
                 Toggle::make('is_withholding_agent')
                     ->required(),
                 TextInput::make('terms_days')

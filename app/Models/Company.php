@@ -18,6 +18,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string $branch_code
  * @property TaxpayerType $taxpayer_type
  * @property int $fiscal_year_start_month
+ * @property string|null $email
+ * @property string|null $address
  * @property bool $require_approval
  * @property bool $block_negative_inventory
  * @property string $currency_code

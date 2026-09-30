@@ -8,9 +8,13 @@ use App\Actions\Receivables\VoidInvoice;
 use App\Enums\InvoiceStatus;
 use App\Filament\Resources\Invoices\InvoiceResource;
 use App\Filament\Support\AttachFilesAction;
+use App\Filament\Support\EmailAction;
 use App\Filament\Support\LoadsRecordRelations;
+use App\Mail\InvoiceMail;
 use App\Models\Invoice;
+use App\Models\SentEmail;
 use App\Models\User;
+use App\Services\Mail\DocumentMailer;
 use App\Services\Printing\PrintInvoice;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Textarea;
@@ -34,6 +38,14 @@ class ViewInvoice extends ViewRecord
     protected function getHeaderActions(): array
     {
         return [
+            EmailAction::make('email', 'Email',
+                fn (Invoice $invoice): array => [
+                    'to' => array_filter([$invoice->customer->email]),
+                    'subject' => InvoiceMail::defaultSubject($invoice),
+                    'message' => InvoiceMail::defaultMessage($invoice),
+                ],
+                fn (Invoice $invoice, array $data, User $user): SentEmail => app(DocumentMailer::class)->invoice($invoice, $data['to'], $data['message'], $user),
+            )->visible(fn (): bool => in_array($this->record->status, [InvoiceStatus::Posted, InvoiceStatus::PartiallyPaid, InvoiceStatus::Paid], true)),
             AttachFilesAction::make(),
             Action::make('pdf')->label('Download PDF')->icon('heroicon-o-document-arrow-down')
                 ->visible(fn (): bool => $this->record->status !== InvoiceStatus::Draft)

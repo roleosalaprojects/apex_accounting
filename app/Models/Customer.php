@@ -7,6 +7,7 @@ namespace App\Models;
 use App\Casts\MoneyCast;
 use App\Models\Concerns\BelongsToCompany;
 use App\Models\Concerns\HasCreator;
+use App\Models\Concerns\HasSentEmails;
 use App\Support\Money;
 use Database\Factories\CustomerFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -22,6 +23,9 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property string|null $tin
  * @property bool $is_withholding_agent
  * @property int $terms_days
+ * @property string|null $email
+ * @property string|null $contact_person
+ * @property string|null $address
  * @property Money|null $credit_limit
  */
 final class Customer extends Model
@@ -32,6 +36,7 @@ final class Customer extends Model
     /** @use HasFactory<CustomerFactory> */
     use HasFactory;
 
+    use HasSentEmails;
     use SoftDeletes;
 
     protected $guarded = [];

@@ -1,4 +1,4 @@
-@extends('print.layout', ['title' => 'STATEMENT OF ACCOUNT', 'number' => $customer->code, 'date' => $asOf])
+@extends('print.layout', ['title' => $title, 'number' => $party->code, 'date' => $asOf])
 
 @section('head-extra')
     <div>Period: {{ $from }} – {{ $asOf }}</div>
@@ -7,14 +7,14 @@
 @section('body')
     <table class="box">
         <tr>
-            <td style="width: 18%"><strong>Customer</strong></td>
+            <td style="width: 18%"><strong>{{ $partyLabel }}</strong></td>
             <td>
-                {{ $customer->name }}
-                @if ($customer->tin)<span class="muted">· TIN {{ $customer->tin }}</span>@endif
-                @if ($customer->address)<br><span class="muted">{{ $customer->address }}</span>@endif
+                {{ $party->name }}
+                @if ($party->tin)<span class="muted">· TIN {{ $party->tin }}</span>@endif
+                @if ($party->address)<br><span class="muted">{{ $party->address }}</span>@endif
             </td>
             <td class="right" style="width: 30%">
-                <div class="muted">Amount due</div>
+                <div class="muted">{{ $balanceLabel }}</div>
                 <h1>{{ $closing }}</h1>
             </td>
         </tr>
@@ -37,7 +37,7 @@
                     <td class="right">{{ $row['balance'] }}</td>
                 </tr>
             @endforeach
-            <tr><td></td><td></td><td><strong>Balance due</strong></td><td></td><td></td><td class="right"><strong>{{ $closing }}</strong></td></tr>
+            <tr><td></td><td></td><td><strong>{{ $closingLabel }}</strong></td><td></td><td></td><td class="right"><strong>{{ $closing }}</strong></td></tr>
         </tbody>
     </table>
 
@@ -57,5 +57,5 @@
 @endsection
 
 @section('note')
-    Amounts are in Philippine pesos. Please quote the invoice numbers when remitting. If you have already paid, kindly disregard this statement.
+    {{ $note }}
 @endsection

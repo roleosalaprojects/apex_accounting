@@ -23,6 +23,9 @@ class VendorForm
                 TextInput::make('name')
                     ->required(),
                 TextInput::make('tin'),
+                TextInput::make('email')->email()->maxLength(160)
+                    ->helperText('Where purchase orders are sent.'),
+                TextInput::make('contact_person')->label('Contact person')->maxLength(120),
                 Textarea::make('address')
                     ->columnSpanFull(),
                 Toggle::make('is_vat_registered')

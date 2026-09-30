@@ -12,6 +12,7 @@ use App\Support\Rbac\RbacRegistry;
 use Filament\Actions\Action;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
@@ -38,6 +39,9 @@ class EditCompanyProfile extends EditTenantProfile
                 TextInput::make('name')->required()->maxLength(160),
                 TextInput::make('tin')->label('TIN')->maxLength(20),
                 TextInput::make('branch_code')->maxLength(5),
+                TextInput::make('email')->email()->maxLength(160)
+                    ->helperText('Invoices, statements and orders are emailed from this address; replies come back to it.'),
+                Textarea::make('address')->rows(2)->columnSpanFull(),
                 Select::make('taxpayer_type')->options(TaxpayerType::class)->required(),
                 TextInput::make('fiscal_year_start_month')
                     ->label('Fiscal year starts in month')

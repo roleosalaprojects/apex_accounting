@@ -6,6 +6,7 @@ namespace App\Filament\Resources\Invoices\Schemas;
 
 use App\Filament\Support\AttachmentsSection;
 use App\Filament\Support\DimensionSelects;
+use App\Filament\Support\EmailsSection;
 use App\Filament\Support\Peso;
 use App\Models\InvoiceLine;
 use Filament\Infolists\Components\RepeatableEntry;
@@ -48,6 +49,7 @@ class InvoiceInfolist
                 TextEntry::make('total')->label('Total')->weight('bold')->formatStateUsing(fn ($state) => Peso::format($state)),
             ]),
             AttachmentsSection::make(),
+            EmailsSection::make(),
         ]);
     }
 }

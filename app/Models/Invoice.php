@@ -9,6 +9,7 @@ use App\Enums\InvoiceStatus;
 use App\Enums\PricingMode;
 use App\Models\Concerns\BelongsToCompany;
 use App\Models\Concerns\HasDocumentMeta;
+use App\Models\Concerns\HasSentEmails;
 use App\Support\Currencies;
 use App\Support\Money;
 use Database\Factories\InvoiceFactory;
@@ -55,6 +56,8 @@ final class Invoice extends Model
 
     /** @use HasFactory<InvoiceFactory> */
     use HasFactory;
+
+    use HasSentEmails;
 
     protected $guarded = [];
 

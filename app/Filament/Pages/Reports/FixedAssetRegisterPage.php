@@ -11,7 +11,7 @@ class FixedAssetRegisterPage extends ReportPage
 {
     protected static ?string $navigationLabel = 'Fixed Asset Register';
 
-    protected static ?int $navigationSort = 20;
+    protected static ?int $navigationSort = 21;
 
     public function getTitle(): string
     {

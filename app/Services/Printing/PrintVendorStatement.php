@@ -4,40 +4,40 @@ declare(strict_types=1);
 
 namespace App\Services\Printing;
 
-use App\Models\Customer;
-use App\Services\Reports\ArAgingReport;
-use App\Services\Reports\StatementOfAccount;
+use App\Models\Vendor;
+use App\Services\Reports\ApAgingReport;
+use App\Services\Reports\VendorStatement;
 use App\Support\Money;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
-/** A customer's Statement of Account for a period, with the open balance aged. */
-final class PrintCustomerStatement
+/** A vendor's statement for a period, with what we still owe them aged — for reconciling against theirs. */
+final class PrintVendorStatement
 {
     public function __construct(
-        private readonly StatementOfAccount $statement,
-        private readonly ArAgingReport $aging,
+        private readonly VendorStatement $statement,
+        private readonly ApAgingReport $aging,
     ) {}
 
-    public function render(Customer $customer, string $from, string $asOf): string
+    public function render(Vendor $vendor, string $from, string $asOf): string
     {
-        return Pdf::loadView('print.statement', $this->data($customer, $from, $asOf))->output();
+        return Pdf::loadView('print.statement', $this->data($vendor, $from, $asOf))->output();
     }
 
     /**
      * @return array<string, mixed>
      */
-    public function data(Customer $customer, string $from, string $asOf): array
+    public function data(Vendor $vendor, string $from, string $asOf): array
     {
-        $customer->loadMissing('company');
-        $soa = $this->statement->build($customer, $from, $asOf);
+        $vendor->loadMissing('company');
+        $soa = $this->statement->build($vendor, $from, $asOf);
 
-        $invoiceIds = DB::table('invoices')->where('customer_id', $customer->id)->pluck('id')->all();
+        $billIds = DB::table('bills')->where('vendor_id', $vendor->id)->pluck('id')->all();
         $buckets = array_fill_keys(['Current', '1–30 days', '31–60 days', '61–90 days', 'Over 90 days'], 0);
         $labels = ['current' => 'Current', '1_30' => '1–30 days', '31_60' => '31–60 days', '61_90' => '61–90 days', '90_plus' => 'Over 90 days'];
-        foreach ($this->aging->build($customer->company_id, $asOf)['rows'] as $row) {
-            if (in_array($row['invoice_id'], $invoiceIds, true)) {
+        foreach ($this->aging->build($vendor->company_id, $asOf)['rows'] as $row) {
+            if (in_array($row['bill_id'], $billIds, true)) {
                 $buckets[$labels[$row['bucket']]] += $row['outstanding'];
             }
         }
@@ -46,14 +46,13 @@ final class PrintCustomerStatement
         $peso = fn (int $minor): string => Money::of($minor)->format();
 
         return [
-            'title' => 'STATEMENT OF ACCOUNT',
-            'partyLabel' => 'Customer',
-            'party' => $customer,
-            'balanceLabel' => 'Amount due',
-            'closingLabel' => 'Balance due',
-            'note' => 'Amounts are in Philippine pesos. Please quote the invoice numbers when remitting. If you have already paid, kindly disregard this statement.',
-            'customer' => $customer,
-            'company' => $customer->company,
+            'title' => 'VENDOR STATEMENT',
+            'partyLabel' => 'Vendor',
+            'party' => $vendor,
+            'balanceLabel' => 'Balance payable',
+            'closingLabel' => 'Balance payable',
+            'note' => 'Amounts are in Philippine pesos, as recorded in our books. Please let us know of any difference against your records.',
+            'company' => $vendor->company,
             'from' => Carbon::parse($from)->format('M j, Y'),
             'asOf' => Carbon::parse($asOf)->format('M j, Y'),
             'opening' => $peso($soa['opening']),

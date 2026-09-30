@@ -10,7 +10,7 @@ class FxRevaluation extends ReportPage
 {
     protected static ?string $navigationLabel = 'FX Revaluation';
 
-    protected static ?int $navigationSort = 17;
+    protected static ?int $navigationSort = 18;
 
     public function getTitle(): string
     {

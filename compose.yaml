@@ -2,6 +2,8 @@
 # http://localhost:8080/admin (logins are printed on first boot, e.g.
 # owner@apex.test / password).
 #
+# Emails the app sends are caught by Mailpit at http://localhost:8026.
+#
 # The working copy is bind-mounted, so code changes show up on refresh. The
 # app gets its own SQLite database in the `app-data` volume, seeded with the
 # demo company and three years of history (HistoricalDataSeeder);
@@ -20,7 +22,25 @@ services:
       DB_CONNECTION: sqlite
       DB_DATABASE: /data/database.sqlite
       PHP_CLI_SERVER_WORKERS: 4
+      # Outgoing email lands in Mailpit (http://localhost:8025) instead of the world.
+      MAIL_MAILER: smtp
+      MAIL_HOST: mailpit
+      MAIL_PORT: 1025
+      MAIL_SCHEME: smtp
+      MAIL_FROM_ADDRESS: noreply@apex.test
+      MAIL_FROM_NAME: "Apex Accounting"
+    depends_on:
+      - mailpit
     command: sh docker/start.sh
+
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "8026:8025"   # web UI: every email the app sends (8026 on the host: Charlie HRMS has 8025)
+      - "1026:1025"   # SMTP
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: 1
+      MP_SMTP_AUTH_ALLOW_INSECURE: 1
 
 volumes:
   app-data:

@@ -54,7 +54,9 @@ class VendorInfolist
                     ->formatStateUsing(fn (Vendor $record): string => $record->defaultWithholdingCode?->atc.' · '.$record->defaultWithholdingCode?->name)
                     ->placeholder('None'),
                 TextEntry::make('createdBy.name')->label('Created by')->placeholder('—'),
-                TextEntry::make('address')->placeholder('—')->columnSpanFull(),
+                TextEntry::make('email')->placeholder('—')->copyable(),
+                TextEntry::make('contact_person')->label('Contact person')->placeholder('—'),
+                TextEntry::make('address')->placeholder('—')->columnSpan(2),
             ])->columnSpanFull(),
         ]);
     }

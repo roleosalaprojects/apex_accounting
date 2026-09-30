@@ -7,9 +7,14 @@ namespace App\Filament\Resources\SalesOrders\Pages;
 use App\Filament\Resources\SalesOrders\Actions\DeliverAction;
 use App\Filament\Resources\SalesOrders\Actions\InvoiceOrderAction;
 use App\Filament\Resources\SalesOrders\SalesOrderResource;
+use App\Filament\Support\EmailAction;
 use App\Filament\Support\LoadsRecordRelations;
 use App\Filament\Support\PrintAction;
+use App\Mail\SalesOrderMail;
 use App\Models\SalesOrder;
+use App\Models\SentEmail;
+use App\Models\User;
+use App\Services\Mail\DocumentMailer;
 use App\Services\Printing\PrintOrder;
 use Filament\Actions\Action;
 use Filament\Actions\EditAction;
@@ -43,6 +48,14 @@ class ViewSalesOrder extends ViewRecord
             PrintAction::make('pdf', 'PDF',
                 fn (SalesOrder $order): string => app(PrintOrder::class)->salesOrder($order),
                 fn (SalesOrder $order): string => ($order->number ?? "SO-{$order->id}").'.pdf'),
+            EmailAction::make('email', 'Email',
+                fn (SalesOrder $order): array => [
+                    'to' => array_filter([$order->customer->email]),
+                    'subject' => SalesOrderMail::defaultSubject($order),
+                    'message' => SalesOrderMail::defaultMessage($order),
+                ],
+                fn (SalesOrder $order, array $data, User $user): SentEmail => app(DocumentMailer::class)->salesOrder($order, $data['to'], $data['message'], $user),
+            )->visible(fn (SalesOrder $order): bool => $order->status !== 'cancelled'),
             EditAction::make(),
         ];
     }

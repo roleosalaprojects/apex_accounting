@@ -6,9 +6,14 @@ namespace App\Filament\Resources\PurchaseOrders\Tables;
 
 use App\Filament\Resources\Bills\BillResource;
 use App\Filament\Resources\PurchaseOrders\Actions\BillOrderAction;
+use App\Filament\Support\EmailAction;
 use App\Filament\Support\OrderStatus;
 use App\Filament\Support\PrintAction;
+use App\Mail\PurchaseOrderMail;
 use App\Models\PurchaseOrder;
+use App\Models\SentEmail;
+use App\Models\User;
+use App\Services\Mail\DocumentMailer;
 use App\Services\Printing\PrintOrder;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
@@ -47,6 +52,14 @@ class PurchaseOrdersTable
                 PrintAction::make('pdf', 'PDF',
                     fn (PurchaseOrder $order): string => app(PrintOrder::class)->purchaseOrder($order),
                     fn (PurchaseOrder $order): string => ($order->number ?? "PO-{$order->id}").'.pdf'),
+                EmailAction::make('email', 'Email',
+                    fn (PurchaseOrder $order): array => [
+                        'to' => array_filter([$order->vendor->email]),
+                        'subject' => PurchaseOrderMail::defaultSubject($order),
+                        'message' => PurchaseOrderMail::defaultMessage($order),
+                    ],
+                    fn (PurchaseOrder $order, array $data, User $user): SentEmail => app(DocumentMailer::class)->purchaseOrder($order, $data['to'], $data['message'], $user),
+                )->visible(fn (PurchaseOrder $order): bool => $order->status !== 'cancelled'),
                 BillOrderAction::make(),
                 EditAction::make(),
             ])

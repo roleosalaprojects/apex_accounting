@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Customers\Schemas;
 
+use App\Filament\Support\EmailsSection;
 use App\Filament\Support\FiscalYear;
 use App\Filament\Support\KeyFigure;
 use App\Filament\Support\Peso;
@@ -54,8 +55,11 @@ class CustomerInfolist
                     ->placeholder('No limit'),
                 IconEntry::make('is_withholding_agent')->label('Withholding agent')->boolean(),
                 TextEntry::make('createdBy.name')->label('Created by')->placeholder('—'),
-                TextEntry::make('address')->placeholder('—')->columnSpanFull(),
+                TextEntry::make('email')->placeholder('—')->copyable(),
+                TextEntry::make('contact_person')->label('Contact person')->placeholder('—'),
+                TextEntry::make('address')->placeholder('—')->columnSpan(2),
             ])->columnSpanFull(),
+            EmailsSection::make(),
         ]);
     }
 

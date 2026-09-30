@@ -6,6 +6,7 @@ namespace App\Models;
 
 use App\Models\Concerns\BelongsToCompany;
 use App\Models\Concerns\HasCreator;
+use App\Models\Concerns\HasSentEmails;
 use Database\Factories\SalesOrderFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -38,6 +39,7 @@ final class SalesOrder extends Model
     /** @use HasFactory<SalesOrderFactory> */
     use HasFactory;
 
+    use HasSentEmails;
     use SoftDeletes;
 
     protected $guarded = [];
