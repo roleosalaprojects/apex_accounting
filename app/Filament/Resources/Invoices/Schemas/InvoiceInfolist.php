@@ -16,7 +16,7 @@ class InvoiceInfolist
 {
     public static function configure(Schema $schema): Schema
     {
-        return $schema->components([
+        return $schema->columns(1)->components([
             Section::make('Invoice')->columns(4)->schema([
                 TextEntry::make('number'),
                 TextEntry::make('customer.name')->label('Customer'),

@@ -27,6 +27,8 @@ use Illuminate\Support\Carbon;
  * @property Money $exempt_purchases
  * @property Money $total
  * @property int|null $journal_entry_id
+ * @property string|null $memo
+ * @property string|null $external_reference_no
  */
 final class DebitMemo extends Model
 {
@@ -55,6 +57,14 @@ final class DebitMemo extends Model
     public function vendor(): BelongsTo
     {
         return $this->belongsTo(Vendor::class);
+    }
+
+    /**
+     * @return BelongsTo<JournalEntry, $this>
+     */
+    public function journalEntry(): BelongsTo
+    {
+        return $this->belongsTo(JournalEntry::class);
     }
 
     /**

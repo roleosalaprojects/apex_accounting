@@ -8,11 +8,13 @@ use App\Actions\Payables\VoidBill;
 use App\Enums\InvoiceStatus;
 use App\Filament\Resources\Bills\Actions\PayBillAction;
 use App\Filament\Resources\Bills\BillResource;
+use App\Filament\Resources\DebitMemos\DebitMemoResource;
 use App\Filament\Support\AttachFilesAction;
 use App\Filament\Support\LoadsRecordRelations;
 use App\Filament\Support\VoidAction;
 use App\Models\Bill;
 use App\Models\User;
+use Filament\Actions\Action;
 use Filament\Resources\Pages\ViewRecord;
 
 class ViewBill extends ViewRecord
@@ -35,6 +37,10 @@ class ViewBill extends ViewRecord
                 fn (Bill $bill, string $reason, User $user) => app(VoidBill::class)->handle($bill, $reason, $user),
                 fn (Bill $bill): bool => in_array($bill->status, [InvoiceStatus::Posted, InvoiceStatus::PartiallyPaid, InvoiceStatus::Paid], true),
             ),
+            Action::make('debit_memo')->label('Debit memo')->icon('heroicon-o-arrow-uturn-left')->color('gray')
+                ->visible(fn (Bill $bill): bool => DebitMemoResource::canCreate()
+                    && in_array($bill->status, [InvoiceStatus::Posted, InvoiceStatus::PartiallyPaid, InvoiceStatus::Paid], true))
+                ->url(fn (Bill $bill): string => DebitMemoResource::getUrl('create', ['bill' => $bill->id])),
             AttachFilesAction::make(),
         ];
     }

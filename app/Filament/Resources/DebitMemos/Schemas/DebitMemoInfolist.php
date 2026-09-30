@@ -2,31 +2,29 @@
 
 declare(strict_types=1);
 
-namespace App\Filament\Resources\Bills\Schemas;
+namespace App\Filament\Resources\DebitMemos\Schemas;
 
-use App\Filament\Support\AttachmentsSection;
-use App\Filament\Support\DimensionSelects;
 use App\Filament\Support\Peso;
 use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 
-class BillInfolist
+class DebitMemoInfolist
 {
     public static function configure(Schema $schema): Schema
     {
         return $schema->columns(1)->components([
-            Section::make('Bill')->columns(4)->schema([
+            Section::make('Debit memo')->columns(4)->schema([
                 TextEntry::make('number'),
                 TextEntry::make('vendor.name')->label('Vendor'),
-                TextEntry::make('bill_date')->date(),
-                TextEntry::make('due_date')->date()->placeholder('—'),
+                TextEntry::make('memo_date')->date(),
                 TextEntry::make('status')->badge(),
                 TextEntry::make('pricing_mode')->label('Pricing'),
+                TextEntry::make('external_reference_no')->label("Vendor's credit note")->placeholder('—'),
                 TextEntry::make('journalEntry.number')->label('Journal entry')->placeholder('—'),
+                TextEntry::make('memo')->label('Reason')->placeholder('—')->columnSpanFull(),
             ]),
-            DimensionSelects::infolistSection(),
             Section::make('Lines')->schema([
                 RepeatableEntry::make('lines')->hiddenLabel()->columns(6)->schema([
                     TextEntry::make('description'),
@@ -37,13 +35,19 @@ class BillInfolist
                     TextEntry::make('vat_amount')->label('VAT')->formatStateUsing(fn ($state) => Peso::format($state)),
                 ]),
             ]),
+            Section::make('Applied to')->schema([
+                RepeatableEntry::make('applications')->hiddenLabel()->columns(3)->schema([
+                    TextEntry::make('bill.number')->label('Bill'),
+                    TextEntry::make('bill.bill_date')->label('Bill date')->date(),
+                    TextEntry::make('amount')->formatStateUsing(fn ($state) => Peso::format($state)),
+                ])->placeholder('Not applied to a bill yet.'),
+            ]),
             Section::make('Totals')->columns(4)->schema([
                 TextEntry::make('vatable_purchases')->label('VATable')->formatStateUsing(fn ($state) => Peso::format($state)),
                 TextEntry::make('input_vat')->label('Input VAT')->formatStateUsing(fn ($state) => Peso::format($state)),
                 TextEntry::make('exempt_purchases')->label('VAT-exempt')->formatStateUsing(fn ($state) => Peso::format($state)),
                 TextEntry::make('total')->label('Total')->weight('bold')->formatStateUsing(fn ($state) => Peso::format($state)),
             ]),
-            AttachmentsSection::make(),
         ]);
     }
 }
