@@ -1,27 +1,5 @@
 <x-filament-panels::page>
-    <form wire:submit.prevent class="flex flex-wrap items-end gap-3">
-        @if ($usesRange)
-            <div>
-                <label class="text-sm font-medium">From</label>
-                <input type="date" wire:model.live="from" class="block rounded-lg border-gray-300 dark:bg-gray-800 dark:border-gray-600" />
-            </div>
-        @endif
-        <div>
-            <label class="text-sm font-medium">{{ $usesRange ? 'To' : 'As of' }}</label>
-            <input type="date" wire:model.live="asOf" class="block rounded-lg border-gray-300 dark:bg-gray-800 dark:border-gray-600" />
-        </div>
-        @if ($entityFilter)
-            <div>
-                <label class="text-sm font-medium">{{ $entityFilter['label'] }}</label>
-                <select wire:model.live="entity" class="block rounded-lg border-gray-300 dark:bg-gray-800 dark:border-gray-600 min-w-64">
-                    <option value="">— select —</option>
-                    @foreach ($entityFilter['options'] as $value => $label)
-                        <option value="{{ $value }}">{{ $label }}</option>
-                    @endforeach
-                </select>
-            </div>
-        @endif
-    </form>
+    {{ $this->filtersForm }}
 
     @if (! empty($report['meta']['label']))
         <p class="text-sm {{ ($report['meta']['ok'] ?? true) ? 'text-success-600' : 'text-danger-600' }}">

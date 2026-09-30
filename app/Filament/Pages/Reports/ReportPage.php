@@ -10,7 +10,10 @@ use App\Services\Printing\ReportExporter;
 use App\Support\Rbac\RbacRegistry;
 use Filament\Actions\Action;
 use Filament\Facades\Filament;
+use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\Select;
 use Filament\Pages\Page;
+use Filament\Schemas\Schema;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -45,6 +48,30 @@ abstract class ReportPage extends Page
     {
         $this->from = Carbon::now()->startOfYear()->toDateString();
         $this->asOf = Carbon::now()->toDateString();
+    }
+
+    /**
+     * The filter bar: the report's dates and, where it has one, its entity
+     * (account, customer, dimension) — bound to $from, $asOf and $entity.
+     */
+    public function filtersForm(Schema $schema): Schema
+    {
+        $entity = $this->entityFilter();
+
+        return $schema
+            ->columns(['default' => 1, 'sm' => 2, 'lg' => 4])
+            ->components([
+                DatePicker::make('from')->label('From')->live()
+                    ->visible($this->usesRange()),
+                DatePicker::make('asOf')->label($this->usesRange() ? 'To' : 'As of')->live(),
+                Select::make('entity')->label($entity['label'] ?? '')
+                    ->options($entity['options'] ?? [])
+                    ->placeholder('— select —')
+                    ->searchable()
+                    ->live()
+                    ->visible($entity !== null)
+                    ->columnSpan(['default' => 1, 'lg' => 2]),
+            ]);
     }
 
     /** Some reports are as-of only (no range). */

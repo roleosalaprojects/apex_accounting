@@ -8,6 +8,7 @@ use App\Filament\Pages\Tenancy\EditCompanyProfile;
 use App\Filament\Pages\Tenancy\RegisterCompany;
 use App\Http\Middleware\SetCompanyContextFromTenant;
 use App\Models\Company;
+use Filament\Forms\Components\DatePicker;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -32,6 +33,10 @@ class AdminPanelProvider extends PanelProvider
         // error: show false booleans in gray rather than red.
         IconColumn::configureUsing(fn (IconColumn $column): IconColumn => $column->falseColor('gray'));
         IconEntry::configureUsing(fn (IconEntry $entry): IconEntry => $entry->falseColor('gray'));
+
+        // Filament's calendar pop-up instead of the browser's date box: dates
+        // read "Sep 30, 2026" and the picker looks the same in every browser.
+        DatePicker::configureUsing(fn (DatePicker $picker): DatePicker => $picker->native(false)->closeOnDateSelection());
     }
 
     public function panel(Panel $panel): Panel
