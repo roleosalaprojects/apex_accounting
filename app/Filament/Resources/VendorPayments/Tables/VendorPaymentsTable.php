@@ -6,10 +6,12 @@ namespace App\Filament\Resources\VendorPayments\Tables;
 
 use App\Actions\Payables\VoidVendorPayment;
 use App\Filament\Support\Peso;
+use App\Filament\Support\PrintAction;
 use App\Filament\Support\VoidAction;
 use App\Models\User;
 use App\Models\VendorPayment;
 use App\Services\Printing\Print2307;
+use App\Services\Printing\PrintPaymentVoucher;
 use Filament\Actions\Action;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
@@ -32,6 +34,10 @@ class VendorPaymentsTable
                     ->color(fn (string $state): string => $state === 'posted' ? 'success' : 'gray'),
             ])
             ->recordActions([
+                PrintAction::make('voucher', 'Voucher',
+                    fn (VendorPayment $payment): string => app(PrintPaymentVoucher::class)->render($payment),
+                    fn (VendorPayment $payment): string => ($payment->voucher_no ?? $payment->number).'.pdf')
+                    ->visible(fn (VendorPayment $payment): bool => $payment->status === 'posted'),
                 VoidAction::make(
                     'payment',
                     fn (VendorPayment $payment, string $reason, User $user) => app(VoidVendorPayment::class)->handle($payment, $reason, $user),

@@ -8,9 +8,11 @@ use App\Enums\PaymentMethod;
 use App\Filament\Resources\JournalEntries\JournalEntryResource;
 use App\Filament\Support\DocumentStatus;
 use App\Filament\Support\Peso;
+use App\Filament\Support\PrintAction;
 use App\Filament\Support\ShownOnViewPage;
 use App\Models\CustomerPayment;
 use App\Models\PaymentApplication;
+use App\Services\Printing\PrintCollectionReceipt;
 use App\Support\Money;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables\Columns\TextColumn;
@@ -46,6 +48,12 @@ class PaymentsRelationManager extends RelationManager
                 TextColumn::make('status')->badge()
                     ->formatStateUsing(fn (string $state): string => ucfirst($state))
                     ->color(fn (string $state): string => $state === 'posted' ? 'success' : 'gray'),
+            ])
+            ->recordActions([
+                PrintAction::make('receipt', 'Receipt',
+                    fn (CustomerPayment $payment): string => app(PrintCollectionReceipt::class)->render($payment),
+                    fn (CustomerPayment $payment): string => ($payment->collection_receipt_no ?? $payment->number).'.pdf')
+                    ->visible(fn (CustomerPayment $payment): bool => $payment->status === 'posted'),
             ])
             ->recordUrl(fn (CustomerPayment $record): ?string => $record->journal_entry_id === null
                 ? null

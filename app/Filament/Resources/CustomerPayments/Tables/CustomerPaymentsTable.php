@@ -6,9 +6,11 @@ namespace App\Filament\Resources\CustomerPayments\Tables;
 
 use App\Actions\Receivables\VoidCustomerPayment;
 use App\Filament\Support\Peso;
+use App\Filament\Support\PrintAction;
 use App\Filament\Support\VoidAction;
 use App\Models\CustomerPayment;
 use App\Models\User;
+use App\Services\Printing\PrintCollectionReceipt;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 
@@ -29,6 +31,10 @@ class CustomerPaymentsTable
                     ->color(fn (string $state): string => $state === 'posted' ? 'success' : 'gray'),
             ])
             ->recordActions([
+                PrintAction::make('receipt', 'Receipt',
+                    fn (CustomerPayment $payment): string => app(PrintCollectionReceipt::class)->render($payment),
+                    fn (CustomerPayment $payment): string => ($payment->collection_receipt_no ?? $payment->number).'.pdf')
+                    ->visible(fn (CustomerPayment $payment): bool => $payment->status === 'posted'),
                 VoidAction::make(
                     'collection',
                     fn (CustomerPayment $payment, string $reason, User $user) => app(VoidCustomerPayment::class)->handle($payment, $reason, $user),

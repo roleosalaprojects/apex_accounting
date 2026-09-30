@@ -48,6 +48,7 @@ final class DemoCompanySeeder extends Seeder
     {
         $company = Company::factory()->create([
             'name' => 'Dari Ventures Corp.',
+            'address' => 'Unit 2-B Burgos Avenue, Cabanatuan City, Nueva Ecija 3100',
             'tin' => '009-123-456-00000',
             'branch_code' => '00000',
             'taxpayer_type' => TaxpayerType::Vat,
