@@ -10,6 +10,7 @@ use App\Enums\CompanyRole;
 use App\Enums\InvoiceStatus;
 use App\Enums\JournalStatus;
 use App\Enums\PeriodStatus;
+use App\Filament\Pages\OpeningBalances;
 use App\Filament\Pages\Team;
 use App\Filament\Pages\Tenancy\EditCompanyProfile;
 use App\Filament\Pages\Tenancy\RegisterCompany;
@@ -185,23 +186,23 @@ it('opens and closes a fiscal year from the periods page', function () {
         ->where('status', '!=', PeriodStatus::Locked->value)->count())->toBe(0);
 });
 
-it('posts opening balances from the chart of accounts page', function () {
-    Repeater::fake();
-
+it('links the chart of accounts to the opening-balances wizard, which posts a balanced entry', function () {
     Livewire::test(ListAccounts::class)
-        ->callAction('openingBalances', [
-            'opening_date' => '2026-01-01',
-            'lines' => [
-                ['account_id' => account($this->company, '1110')->id, 'debit' => '10000', 'credit' => null],
-                ['account_id' => account($this->company, '2200')->id, 'debit' => null, 'credit' => '4000'],
-            ],
-        ])
-        ->assertHasNoActionErrors();
+        ->assertActionVisible('openingBalances')
+        ->assertActionHasUrl('openingBalances', OpeningBalances::getUrl());
+
+    $cash = account($this->company, '1110')->id;
+    $vat = account($this->company, '2200')->id;
+    Livewire::test(OpeningBalances::class)
+        ->fillForm(['opening_date' => '2026-01-01', "balances.{$cash}.debit" => '10000', "balances.{$vat}.credit" => '4000'])
+        ->call('post')
+        ->assertHasNoFormErrors();
 
     $je = JournalEntry::query()->withoutGlobalScopes()
         ->where('company_id', $this->company->id)->firstOrFail();
     expect($je->status)->toBe(JournalStatus::Posted)
-        ->and($je->total_debits->minor)->toBe($je->total_credits->minor);
+        ->and($je->total_debits->minor)->toBe($je->total_credits->minor)
+        ->and($je->total_debits->minor)->toBe(10_000_00);
 });
 
 it('manages team members: add, change role, last-owner guard', function () {
