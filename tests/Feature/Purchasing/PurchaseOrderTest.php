@@ -73,3 +73,25 @@ it('renders the purchase orders list page', function () {
 
     Livewire::test(ListPurchaseOrders::class)->assertOk();
 });
+
+it('bills a purchase order in parts, tracking what each bill covered', function () {
+    $po = makePurchaseOrderWithLine($this);
+    $po->lines()->first()->update(['qty' => '10']);
+    $po->update(['status' => 'sent']);
+    $line = $po->fresh()->lines->first();
+    $service = app(PurchaseOrderService::class);
+
+    $first = $service->bill($po->fresh(), [$line->id => '4'], $this->actor, '2026-03-05');
+    expect($first->total->minor)->toBe(4 * 1000_00)
+        ->and($first->purchase_order_id)->toBe($po->id)
+        ->and($line->fresh()->billed_qty)->toBe('4.0000')
+        ->and($po->fresh()->status)->toBe('partially_billed');
+
+    expect(fn () => $service->bill($po->fresh(), [$line->id => '7'], $this->actor))->toThrow(RuntimeException::class, 'only 6');
+
+    $rest = $service->convertToBill($po->fresh(), $this->actor);
+    expect($rest->total->minor)->toBe(6 * 1000_00)
+        ->and($po->fresh()->status)->toBe('billed')
+        ->and($po->fresh()->bills()->count())->toBe(2)
+        ->and(fn () => $service->convertToBill($po->fresh(), $this->actor))->toThrow(RuntimeException::class);
+});

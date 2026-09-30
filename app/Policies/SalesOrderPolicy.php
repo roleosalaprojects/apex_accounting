@@ -16,6 +16,12 @@ final class SalesOrderPolicy extends PermissionPolicy
 
     protected array $managePermissions = [RbacRegistry::INVOICE_MANAGE];
 
+    /** Issuing a delivery receipt moves goods but posts nothing. */
+    public function deliver(User $user, SalesOrder $order): bool
+    {
+        return $this->allowsAll($user, [RbacRegistry::INVOICE_MANAGE], $order);
+    }
+
     /** Converting posts the resulting invoice. */
     public function convertToInvoice(User $user, SalesOrder $order): bool
     {

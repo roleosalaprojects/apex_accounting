@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Support\Quantity;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -19,6 +20,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $tax_code_id
  * @property int $expense_account_id
  * @property string|null $vat_bucket
+ * @property string $billed_qty
  */
 final class PurchaseOrderLine extends Model
 {
@@ -28,8 +30,15 @@ final class PurchaseOrderLine extends Model
     {
         return [
             'qty' => 'decimal:4',
+            'billed_qty' => 'decimal:4',
             'unit_price' => 'integer',
         ];
+    }
+
+    /** Units (×10,000) ordered but not yet billed. */
+    public function unitsToBill(): int
+    {
+        return Quantity::toUnits($this->qty) - Quantity::toUnits($this->billed_qty);
     }
 
     /**

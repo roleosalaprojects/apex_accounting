@@ -94,6 +94,7 @@ final class PostInvoice
                 'reference_no' => $data->reference_no,
                 'external_reference_no' => $data->external_reference_no,
                 'remarks' => $data->remarks,
+                'sales_order_id' => $data->sales_order_id,
                 'created_by' => $data->created_by ?? $actor?->id,
                 'approved_by' => $data->approved_by ?? $actor?->id,
                 'approved_at' => now(),

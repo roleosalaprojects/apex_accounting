@@ -31,6 +31,7 @@ final class BillData extends Data
         public ?int $project_id = null,
         public ?int $fund_id = null,
         public ?int $branch_id = null,
+        public ?int $purchase_order_id = null,
         public ?int $created_by = null,
         public ?int $approved_by = null,
     ) {}

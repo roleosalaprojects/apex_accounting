@@ -38,6 +38,7 @@ use Illuminate\Support\Carbon;
  * @property float $exchange_rate
  * @property int|null $foreign_total
  * @property int|null $journal_entry_id
+ * @property int|null $sales_order_id
  * @property int|null $department_id
  * @property int|null $project_id
  * @property int|null $fund_id
@@ -89,6 +90,14 @@ final class Invoice extends Model
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class);
+    }
+
+    /**
+     * @return BelongsTo<SalesOrder, $this>
+     */
+    public function salesOrder(): BelongsTo
+    {
+        return $this->belongsTo(SalesOrder::class);
     }
 
     /**

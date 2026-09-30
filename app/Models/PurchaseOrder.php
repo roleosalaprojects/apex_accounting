@@ -73,6 +73,14 @@ final class PurchaseOrder extends Model
         return $this->belongsTo(Bill::class);
     }
 
+    /**
+     * @return HasMany<Bill, $this>
+     */
+    public function bills(): HasMany
+    {
+        return $this->hasMany(Bill::class);
+    }
+
     /** Net-of-tax subtotal in minor units, for listing only. */
     public function subtotal(): int
     {

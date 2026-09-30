@@ -31,18 +31,29 @@ final class PrintOrder
         ]))->output();
     }
 
+    /** A quotation until the customer accepts it, a sales order after. */
     public function salesOrder(SalesOrder $order): string
     {
         $order->loadMissing(['customer', 'company', 'createdBy', 'lines']);
 
-        return Pdf::loadView('print.order', $this->data($order, [
-            'title' => 'SALES ORDER',
+        return Pdf::loadView('print.order', $this->data($order, $this->salesOrderOptions($order)))->output();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function salesOrderOptions(SalesOrder $order): array
+    {
+        $quotation = in_array($order->status, ['draft', 'sent'], true);
+
+        return [
+            'title' => $quotation ? 'QUOTATION' : 'SALES ORDER',
             'partyLabel' => 'Customer',
             'party' => $order->customer,
             'secondDateLabel' => 'Valid until',
             'secondDate' => $order->expiry_date?->format('M j, Y'),
             'acknowledgeLabel' => 'Conforme (customer)',
-        ]))->output();
+        ];
     }
 
     /**

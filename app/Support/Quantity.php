@@ -52,6 +52,16 @@ final class Quantity
     }
 
     /**
+     * Ten-thousandths as people write them: 60_000 -> "6", 25_000 -> "2.5".
+     */
+    public static function compact(int $units): string
+    {
+        $decimal = self::fromUnits($units);
+
+        return str_contains($decimal, '.') ? rtrim(rtrim($decimal, '0'), '.') : $decimal;
+    }
+
+    /**
      * Multiply a unit price (centavos) by a quantity, rounding half up to the
      * centavo. Quantities are non-negative on real document lines.
      */

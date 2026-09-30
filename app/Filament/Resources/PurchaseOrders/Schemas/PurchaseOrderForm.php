@@ -35,8 +35,7 @@ class PurchaseOrderForm
                     ->default(PricingMode::VatExclusive->value)->required(),
                 Select::make('status')
                     ->options(['draft' => 'Draft', 'sent' => 'Sent', 'received' => 'Received', 'cancelled' => 'Cancelled'])
-                    ->default('draft')->required()
-                    ->disabled(fn (?string $state): bool => $state === 'billed'),
+                    ->default('draft')->required(),
                 TextInput::make('reference')->label("Vendor's reference")->maxLength(160),
                 Textarea::make('notes')->columnSpanFull(),
 

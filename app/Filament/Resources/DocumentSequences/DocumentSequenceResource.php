@@ -50,6 +50,7 @@ class DocumentSequenceResource extends Resource
         'payment_voucher' => 'Payment vouchers',
         'purchase_order' => 'Purchase orders',
         'sales_order' => 'Sales orders',
+        'delivery' => 'Delivery receipts',
         'asset' => 'Fixed assets',
         'recurring_run' => 'Recurring runs',
     ];

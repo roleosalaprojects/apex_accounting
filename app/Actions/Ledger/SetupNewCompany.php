@@ -86,6 +86,7 @@ final class SetupNewCompany
         'payment_voucher' => ['PV', 6],
         'purchase_order' => ['PO', 6],
         'sales_order' => ['SO', 6],
+        'delivery' => ['DR', 6],
     ];
 
     /**

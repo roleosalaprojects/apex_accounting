@@ -28,6 +28,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $reference
  * @property string $status
  * @property int|null $invoice_id
+ * @property string|null $notes
  */
 final class SalesOrder extends Model
 {
@@ -66,11 +67,35 @@ final class SalesOrder extends Model
     }
 
     /**
+     * The latest invoice raised from the order.
+     *
      * @return BelongsTo<Invoice, $this>
      */
     public function invoice(): BelongsTo
     {
         return $this->belongsTo(Invoice::class);
+    }
+
+    /**
+     * @return HasMany<Invoice, $this>
+     */
+    public function invoices(): HasMany
+    {
+        return $this->hasMany(Invoice::class);
+    }
+
+    /**
+     * @return HasMany<Delivery, $this>
+     */
+    public function deliveries(): HasMany
+    {
+        return $this->hasMany(Delivery::class);
+    }
+
+    /** Whether goods or invoices can still move against the order. */
+    public function isOpen(): bool
+    {
+        return in_array($this->status, ['sent', 'accepted', 'partially_invoiced', 'invoiced'], true);
     }
 
     /** Net-of-tax subtotal in minor units, for listing only. */

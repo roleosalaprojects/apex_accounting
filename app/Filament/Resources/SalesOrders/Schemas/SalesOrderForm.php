@@ -31,9 +31,9 @@ class SalesOrderForm
                 Select::make('pricing_mode')->options(PricingMode::class)
                     ->default(PricingMode::VatInclusive->value)->required(),
                 Select::make('status')
-                    ->options(['draft' => 'Draft', 'sent' => 'Sent', 'accepted' => 'Accepted', 'cancelled' => 'Cancelled'])
+                    ->options(['draft' => 'Draft (quotation)', 'sent' => 'Sent (quotation)', 'accepted' => 'Accepted (sales order)', 'cancelled' => 'Cancelled'])
                     ->default('draft')->required()
-                    ->disabled(fn (?string $state): bool => $state === 'invoiced'),
+                    ->helperText('Draft and sent orders print as quotations; accepted ones as sales orders.'),
                 TextInput::make('reference')->maxLength(160),
                 Textarea::make('notes')->columnSpanFull(),
 

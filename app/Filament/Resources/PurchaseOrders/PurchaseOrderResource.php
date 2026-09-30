@@ -15,7 +15,9 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use Illuminate\Auth\Access\Response;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class PurchaseOrderResource extends Resource
@@ -34,6 +36,16 @@ class PurchaseOrderResource extends Resource
     public static function table(Table $table): Table
     {
         return PurchaseOrdersTable::configure($table);
+    }
+
+    /** Once a bill has been raised against it, the order is history: no more editing. */
+    public static function getEditAuthorizationResponse(Model $record): Response
+    {
+        if ($record->bills()->exists()) {
+            return Response::deny('A bill has already been raised against this order.');
+        }
+
+        return parent::getEditAuthorizationResponse($record);
     }
 
     public static function getPages(): array
