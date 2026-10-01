@@ -16,11 +16,15 @@ final class ProfitAndLossReport
     public function __construct(private readonly ReportBalances $balances) {}
 
     /**
+     * Income statements leave year-end closing entries out; the balance sheet
+     * passes $includeClosing = true to find what is still sitting in the
+     * nominal accounts (a year not closed yet).
+     *
      * @return array{income: array<int, array<string, mixed>>, expense: array<int, array<string, mixed>>, total_income: int, total_expense: int, net_income: int}
      */
-    public function build(int $companyId, string $from, string $asOf): array
+    public function build(int $companyId, string $from, string $asOf, bool $includeClosing = false): array
     {
-        $movement = $this->balances->movementBetween($companyId, $from, $asOf);
+        $movement = $this->balances->movementBetween($companyId, $from, $asOf, $includeClosing);
 
         $accounts = Account::query()->withoutGlobalScopes()
             ->where('company_id', $companyId)->get()->keyBy('id');

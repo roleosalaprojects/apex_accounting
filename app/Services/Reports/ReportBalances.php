@@ -66,15 +66,22 @@ final class ReportBalances
     }
 
     /**
+     * Debits and credits per account in the range. Income statements pass
+     * $includeClosing = false: a year-end close zeroes the nominal accounts
+     * and would otherwise wipe the year it closes.
+     *
      * @return array<int, array{debit: int, credit: int}>
      */
-    public function movementBetween(int $companyId, ?string $from, string $asOf): array
+    public function movementBetween(int $companyId, ?string $from, string $asOf, bool $includeClosing = true): array
     {
         $query = DB::table('journal_lines')
             ->join('journal_entries', 'journal_lines.journal_entry_id', '=', 'journal_entries.id')
             ->where('journal_entries.company_id', $companyId)
             ->whereIn('journal_entries.status', self::EFFECTIVE)
             ->whereDate('journal_entries.entry_date', '<=', $asOf);
+        if (! $includeClosing) {
+            $query->where('journal_entries.is_closing', false);
+        }
 
         if ($from !== null) {
             $query->whereDate('journal_entries.entry_date', '>=', $from);

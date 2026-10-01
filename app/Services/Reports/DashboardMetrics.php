@@ -37,6 +37,7 @@ final class DashboardMetrics
         $rows = $this->lines($companyId)
             ->join('accounts', 'journal_lines.account_id', '=', 'accounts.id')
             ->whereIn('accounts.type', [AccountType::Income->value, AccountType::Expense->value])
+            ->where('journal_entries.is_closing', false)
             ->whereDate('journal_entries.entry_date', '>=', array_values($series)[0]['month']->toDateString())
             ->whereDate('journal_entries.entry_date', '<=', $end->toDateString())
             ->groupBy('journal_entries.entry_date', 'accounts.type')

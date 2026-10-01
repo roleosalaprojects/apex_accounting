@@ -53,6 +53,26 @@ it('replays idempotently — same key returns the original result without re-pos
         ->and(JournalEntry::query()->count())->toBe(1); // posted once
 });
 
+it('refuses a reused key with a different body, and keeps keys apart per client', function () {
+    Passport::actingAs($this->client, ['je:post']);
+    $headers = ['Idempotency-Key' => 'pos-z-2026-06-16'];
+    $this->withHeaders($headers)->postJson('/api/v1/journal-entries', zReadingPayload($this->company->id))->assertCreated();
+
+    $changed = zReadingPayload($this->company->id);
+    $changed['memo'] = 'Something else entirely';
+    $this->withHeaders($headers)->postJson('/api/v1/journal-entries', $changed)
+        ->assertStatus(409)
+        ->assertJsonPath('message', fn (string $m): bool => str_contains($m, 'different request'));
+    expect(JournalEntry::query()->count())->toBe(1);
+
+    // Another client reusing the same key string gets its own operation, not this one's response.
+    $other = makeUserWithRole($this->company, CompanyRole::Accountant);
+    Passport::actingAs($other, ['je:post']);
+    $this->withHeaders($headers)->postJson('/api/v1/journal-entries', zReadingPayload($this->company->id))
+        ->assertCreated()->assertHeaderMissing('Idempotent-Replay');
+    expect(JournalEntry::query()->count())->toBe(2);
+});
+
 it('posts the HRMS payroll summary journal entry', function () {
     Passport::actingAs($this->client, ['je:post']);
 

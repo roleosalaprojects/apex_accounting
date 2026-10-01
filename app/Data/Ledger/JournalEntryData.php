@@ -24,6 +24,7 @@ final class JournalEntryData extends Data
         public ?string $reference_no = null,
         public ?string $external_reference_no = null,
         public ?string $remarks = null,
+        public bool $is_closing = false,
         // Set when the document has already passed approval; lets the posting
         // chokepoint honour require_approval without a separate workflow table.
         public ?int $approved_by = null,

@@ -8,6 +8,8 @@ use Illuminate\Database\Eloquent\Model;
 
 /**
  * @property int $id
+ * @property int|null $user_id
+ * @property string|null $request_hash
  * @property string $key
  * @property string $method
  * @property string $path

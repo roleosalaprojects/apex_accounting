@@ -67,6 +67,7 @@ final class PostJournalEntry
                 'reference_no' => $data->reference_no,
                 'external_reference_no' => $data->external_reference_no,
                 'remarks' => $data->remarks,
+                'is_closing' => $data->is_closing,
                 'reversal_of_id' => $data->reversal_of_id,
                 'reversal_reason' => $data->reversal_reason,
                 'status' => JournalStatus::Posted,

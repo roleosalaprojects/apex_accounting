@@ -28,6 +28,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $source_type
  * @property int|null $source_id
  * @property JournalStatus $status
+ * @property bool $is_closing
  * @property int|null $reversal_of_id
  * @property int|null $reversed_by_id
  * @property string|null $reversal_reason
@@ -49,6 +50,7 @@ final class JournalEntry extends Model
         return [
             'entry_date' => 'date',
             'status' => JournalStatus::class,
+            'is_closing' => 'boolean',
             'checked_at' => 'datetime',
             'approved_at' => 'datetime',
             'posted_at' => 'datetime',

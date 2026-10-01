@@ -159,6 +159,7 @@ final class CloseFiscalYear
             company_id: $company->id,
             entry_date: $lastPeriod->ends_on->toDateString(),
             memo: "Year-end closing entry FY{$lastPeriod->fiscal_year}",
+            is_closing: true,
             lines: new DataCollection(JournalLineData::class, $lines),
             approved_by: $actor?->id,
             created_by: $actor?->id,

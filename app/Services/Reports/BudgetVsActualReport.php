@@ -30,7 +30,7 @@ final class BudgetVsActualReport
         $accounts = Account::query()->withoutGlobalScopes()
             ->where('company_id', $companyId)->get()->keyBy('id');
 
-        $movement = $this->balances->movementBetween($companyId, $from, $asOf);
+        $movement = $this->balances->movementBetween($companyId, $from, $asOf, includeClosing: false);
 
         $rows = [];
         $totalBudget = 0;

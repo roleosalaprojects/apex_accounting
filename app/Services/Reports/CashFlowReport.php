@@ -25,7 +25,7 @@ final class CashFlowReport
      */
     public function build(int $companyId, string $from, string $asOf): array
     {
-        $movement = $this->balances->movementBetween($companyId, $from, $asOf);
+        $movement = $this->balances->movementBetween($companyId, $from, $asOf, includeClosing: false);
         $accounts = Account::query()->withoutGlobalScopes()
             ->where('company_id', $companyId)->get()->keyBy('id');
 

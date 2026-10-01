@@ -7,8 +7,13 @@ use App\Actions\Ledger\OpenFiscalYear;
 use App\Enums\AccountSubtype;
 use App\Enums\CompanyRole;
 use App\Models\Account;
+use App\Models\JournalEntry;
 use App\Services\Reports\BalanceSheetReport;
+use App\Services\Reports\CashFlowReport;
+use App\Services\Reports\DashboardMetrics;
+use App\Services\Reports\ProfitAndLossReport;
 use App\Services\Reports\StatementOfChangesInEquity;
+use Carbon\CarbonImmutable;
 
 /*
  * Earnings of earlier fiscal years belong in equity whether or not the year
@@ -65,4 +70,28 @@ it('carries earnings in the equity statement so it agrees with the balance sheet
         ->and($equity['closing_total'])->toBe($bs['total_equity'])
         ->and(collect($equity['rows'])->firstWhere('name', 'Earnings not yet closed to Retained Earnings'))
         ->toMatchArray(['opening' => 100_000_00, 'movement' => 50_000_00, 'closing' => 150_000_00]);
+});
+
+it('keeps the closed year\'s income statement intact: closing entries are not trading', function () {
+    app(CloseFiscalYear::class)->handle($this->company, 2025, $this->owner);
+
+    $pl = app(ProfitAndLossReport::class)->build($this->company->id, '2025-01-01', '2025-12-31');
+    expect($pl['total_income'])->toBe(100_000_00)
+        ->and($pl['total_expense'])->toBe(0)
+        ->and($pl['net_income'])->toBe(100_000_00);
+
+    $december = app(ProfitAndLossReport::class)->build($this->company->id, '2025-12-01', '2025-12-31');
+    expect($december['net_income'])->toBe(0);
+
+    $series = collect(app(DashboardMetrics::class)->monthlyProfitAndLoss($this->company->id, CarbonImmutable::parse('2026-03-31'), 6))
+        ->keyBy(fn (array $point): string => $point['month']->format('Y-m'));
+    expect($series['2025-12']['income'])->toBe(0)
+        ->and($series['2025-12']['expenses'])->toBe(0)
+        ->and($series['2026-03']['income'])->toBe(50_000_00);
+
+    $cash = app(CashFlowReport::class)->build($this->company->id, '2025-01-01', '2025-12-31');
+    expect($cash['balanced'])->toBeTrue()->and($cash['cash_change'])->toBe(100_000_00);
+
+    // The ledger itself still shows the closing entry, flagged as such.
+    expect(JournalEntry::query()->where('is_closing', true)->count())->toBe(1);
 });

@@ -89,6 +89,7 @@ final class DimensionProfitAndLossReport
             ->join('accounts', 'journal_lines.account_id', '=', 'accounts.id')
             ->where('journal_entries.company_id', $companyId)
             ->whereIn('journal_entries.status', [JournalStatus::Posted->value, JournalStatus::Reversed->value])
+            ->where('journal_entries.is_closing', false)
             ->whereIn('accounts.type', [AccountType::Income->value, AccountType::Expense->value])
             ->whereDate('journal_entries.entry_date', '>=', $from)
             ->whereDate('journal_entries.entry_date', '<=', $asOf)

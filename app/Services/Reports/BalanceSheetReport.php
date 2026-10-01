@@ -66,7 +66,7 @@ final class BalanceSheetReport
         $equity[] = ['account_id' => null, 'code' => null, 'name' => 'Current-year earnings', 'amount' => $earnings];
         $totalEquity += $earnings;
 
-        $priorEarnings = $this->pnl->build($company->id, self::DAWN, Carbon::parse($fiscalYearStart)->subDay()->toDateString())['net_income'];
+        $priorEarnings = $this->pnl->build($company->id, self::DAWN, Carbon::parse($fiscalYearStart)->subDay()->toDateString(), includeClosing: true)['net_income'];
         if ($priorEarnings !== 0) {
             $equity[] = ['account_id' => null, 'code' => null, 'name' => 'Retained earnings — prior years not yet closed', 'amount' => $priorEarnings];
             $totalEquity += $priorEarnings;
