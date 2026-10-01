@@ -1,0 +1,36 @@
+<?php
+// Render every printed document and report/export format from the demo data.
+require '/var/www/html/vendor/autoload.php';
+$app = require '/var/www/html/bootstrap/app.php';
+$app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+use Illuminate\Support\Facades\DB;
+app(App\Support\CompanyContext::class)->set(1);
+$company = App\Models\Company::query()->findOrFail(1);
+$ok = fn (string $what, string $bytes) => printf("%-28s %s (%d bytes)\n", $what, str_starts_with($bytes, '%PDF') ? 'PDF ok' : 'NOT A PDF', strlen($bytes));
+$invoice = App\Models\Invoice::query()->where('status', 'posted')->orderByDesc('id')->first();
+$ok('invoice', app(App\Services\Printing\PrintInvoice::class)->render($invoice));
+$payment = App\Models\CustomerPayment::query()->where('status', 'posted')->orderByDesc('id')->first();
+$ok('collection receipt', app(App\Services\Printing\PrintCollectionReceipt::class)->render($payment));
+$vp = App\Models\VendorPayment::query()->where('status', 'posted')->orderByDesc('id')->first();
+$ok('payment voucher', app(App\Services\Printing\PrintPaymentVoucher::class)->render($vp));
+$ok('form 2307', app(App\Services\Printing\Print2307::class)->render($vp));
+$po = App\Models\PurchaseOrder::query()->first();
+$ok('purchase order', app(App\Services\Printing\PrintOrder::class)->purchaseOrder($po));
+$so = App\Models\SalesOrder::query()->orderBy('id')->first();
+$ok('quotation / sales order', app(App\Services\Printing\PrintOrder::class)->salesOrder($so));
+$dr = App\Models\Delivery::query()->first();
+$ok('delivery receipt', app(App\Services\Printing\PrintDeliveryReceipt::class)->render($dr));
+$customer = App\Models\Customer::query()->find($invoice->customer_id);
+$ok('customer statement', app(App\Services\Printing\PrintCustomerStatement::class)->render($customer, '2026-01-01', '2026-10-01'));
+$vendor = App\Models\Vendor::query()->find($vp->vendor_id);
+$ok('vendor statement', app(App\Services\Printing\PrintVendorStatement::class)->render($vendor, '2026-01-01', '2026-10-01'));
+$exporter = app(App\Services\Printing\ReportExporter::class);
+$rows = [['A', '1.00'], ['B', '2.00']];
+$ok('report pdf export', $exporter->toPdf('Hdr', 'Title', ['Col', 'Amt'], $rows));
+$xlsx = $exporter->toXlsx('Hdr', 'Title', ['Col', 'Amt'], $rows);
+printf("%-28s %s (%d bytes)\n", 'report xlsx export', str_starts_with($xlsx, "PK") ? 'XLSX ok' : 'NOT XLSX', strlen($xlsx));
+$ok('tax return pdf (figures)', $exporter->toPdf('Hdr', '2550Q', ['Figure', 'Value'], [['vat_payable', '1.00']]));
+$dat = app(App\Services\Tax\AlphalistExporter::class)->ewt($company, '2026-01-01', '2026-09-30');
+printf("%-28s %s (%d lines)\n", 'EWT alphalist DAT', str_starts_with($dat, 'H|QAP|') ? 'ok' : 'bad header', substr_count($dat, "\n"));
+$slsp = app(App\Services\Tax\SlspDatExporter::class)->sales($company, '2026-07-01', '2026-09-30');
+printf("%-28s %s (%d chars)\n", 'SLSP sales DAT', strlen($slsp) > 0 ? 'ok' : 'empty', strlen($slsp));
